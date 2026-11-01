@@ -49,7 +49,7 @@
     if(!files.length){assets.innerHTML='<div class="state">Aucun installateur publié pour le moment. Lancez une release Windows depuis le dépôt.</div>';return}
     assets.innerHTML=files.map(file=>`<a class="asset" href="${file.browser_download_url}"><div class="asset-icon">${/portable/i.test(file.name)?'🧳':'⬇️'}</div><div><strong>${file.name}</strong><small>${bytes(file.size)} · téléchargement direct</small></div></a>`).join('');
   }
-  fetch(api,{headers:{Accept:'application/vnd.github+json'}}).then(r=>{if(!r.ok)throw new Error('release');return r.json()}).then(render).catch(()=>{version.textContent='Version en ligne';assets.innerHTML=`<div class="state error">Le dépôt n’est pas encore configuré. Remplacez <code>OWNER/REPOSITORY</code> dans download.html ou ouvrez <a href="https://github.com/${repo}/releases">les releases GitHub</a>.</div>`});
+  fetch(api,{headers:{Accept:'application/vnd.github+json'}}).then(r=>{if(!r.ok)throw new Error(r.status===404?'no-release':'network');return r.json()}).then(render).catch(error=>{version.textContent=error.message==='no-release'?'En attente de la première version':'Versions momentanément indisponibles';assets.innerHTML=`<div class="state">Aucun installateur n’a encore été publié. Les téléchargements apparaîtront ici après la première release Windows. <a href="https://github.com/${repo}/releases">Voir les releases GitHub</a>.</div>`});
 </script>
 </body>
 </html>
