@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameVault — Boutique</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #060c14; --sidebar: #080f1a; --panel: #0b1525; --card: #0d1929;
+            --border: #162030; --border2: #1e3050;
+            --accent: #00aaff; --accent2: #0066cc; --accent3: #00ffaa;
+            --text: #c8d8e8; --muted: #4a6080; --white: #e8f0f8;
+            --red: #ff4060; --gold: #ffaa00; --sidebar-w: 220px;
+        }
+        html, body { height:100%; font-family:'Exo 2',sans-serif; background:var(--bg); color:var(--text); overflow-x:hidden; }
+        body::before { content:''; position:fixed; inset:0; pointer-events:none; background-image:linear-gradient(rgba(0,170,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,170,255,0.02) 1px,transparent 1px); background-size:40px 40px; }
+        ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+        @keyframes scanline{0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
+
+        .app{display:flex;height:100vh;overflow:hidden}
+
+        /* SIDEBAR */
+        .sidebar{width:var(--sidebar-w);background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+        .sidebar-logo{padding:18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
+        .logo-gem{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 14px rgba(0,170,255,0.4);flex-shrink:0}
+        .logo-text{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:var(--white)}
+        .logo-text span{color:var(--accent)}
+        .user-card{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
+        .avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a3a5c,#0a2040);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+        .u-name{font-size:12px;font-weight:600;color:var(--white)}
+        .u-role{font-size:9px;color:var(--accent3);letter-spacing:1px;text-transform:uppercase}
+        .nav{flex:1;padding:10px 0;overflow-y:auto}
+        .nav-section{padding:14px 18px 5px;font-size:9px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--muted)}
+        .nav-item{display:flex;align-items:center;gap:9px;padding:8px 18px;cursor:pointer;border-left:3px solid transparent;font-size:12px;color:var(--muted);transition:all 0.2s}
+        .nav-item:hover{background:rgba(0,170,255,0.05);color:var(--text)}
+        .nav-item.active{background:rgba(0,170,255,0.08);color:var(--accent);border-left-color:var(--accent)}
+        .nav-icon{font-size:14px;width:18px;text-align:center}
+        .nav-count{margin-left:auto;background:var(--accent);color:#000;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px}
+        .sidebar-bottom{padding:14px 18px;border-top:1px solid var(--border)}
+        .storage-label{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:5px;letter-spacing:1px}
+        .storage-bar{height:3px;background:var(--border2);border-radius:2px;overflow:hidden}
+        .storage-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:2px;transition:width 0.5s ease}
+
+        /* MAIN */
+        .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+        .topbar{height:54px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 22px;gap:14px;flex-shrink:0}
+        .topbar-title{font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;letter-spacing:2px;color:var(--white);text-transform:uppercase}
+        .search-bar{flex:1;max-width:300px;position:relative;margin-left:auto}
+        .search-bar input{width:100%;padding:7px 12px 7px 34px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:12px;outline:none;transition:border-color 0.3s}
+        .search-bar input:focus{border-color:var(--accent)}
+        .search-bar input::placeholder{color:var(--muted)}
+        .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;pointer-events:none}
+        .filter-tabs{display:flex;gap:4px}
+        .ftab{padding:5px 12px;border-radius:5px;font-size:10px;font-weight:600;letter-spacing:1px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all 0.2s;font-family:'Exo 2',sans-serif}
+        .ftab:hover{border-color:var(--accent);color:var(--accent)}
+        .ftab.active{background:rgba(0,170,255,0.1);border-color:var(--accent);color:var(--accent)}
+        .content{flex:1;overflow-y:auto;padding:20px}
+
+        /* SECTION */
+        .section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+        .section-title{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--white);display:flex;align-items:center;gap:7px}
+        .section-title::before{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px;box-shadow:0 0 6px var(--accent)}
+        .section-count{font-size:10px;color:var(--muted)}
+
+        /* EMPTY */
+        .empty-state{text-align:center;padding:60px 20px;animation:fadeUp 0.5s ease}
+        .empty-icon{font-size:56px;margin-bottom:16px;opacity:0.4}
+        .empty-title{font-family:'Rajdhani',sans-serif;font-size:18px;color:var(--muted);letter-spacing:2px;margin-bottom:8px}
+        .empty-sub{font-size:12px;color:var(--muted);opacity:0.6}
+
+        /* GAME CARDS */
+        .games-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:28px}
+        .game-card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:transform 0.2s,border-color 0.2s,box-shadow 0.2s;animation:fadeUp 0.5s ease both}
+        .game-card:hover{transform:translateY(-4px);border-color:var(--accent);box-shadow:0 8px 28px rgba(0,0,0,0.4),0 0 18px rgba(0,170,255,0.07)}
+        .game-thumb{width:100%;height:116px;display:flex;align-items:center;justify-content:center;font-size:48px;position:relative}
+        .game-thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,var(--card) 100%)}
+        .game-info{padding:11px 13px 13px}
+        .game-title{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:var(--white);letter-spacing:0.5px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .game-genre{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:9px}
+        .game-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+        .game-size{font-size:10px;color:var(--muted)}
+        .game-dl-count{font-size:10px;color:var(--accent3)}
+
+        /* DOWNLOAD BUTTON + PROGRESS */
+        .dl-wrap{position:relative}
+        .btn-dl{width:100%;padding:8px;background:rgba(0,170,255,0.08);border:1px solid rgba(0,170,255,0.2);border-radius:6px;color:var(--accent);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all 0.2s}
+        .btn-dl:hover{background:rgba(0,170,255,0.15);border-color:var(--accent);box-shadow:0 0 14px rgba(0,170,255,0.1)}
+        .btn-dl:disabled{opacity:0.7;cursor:default}
+        .btn-dl.done{background:rgba(0,255,170,0.08);border-color:rgba(0,255,170,0.3);color:var(--accent3)}
+
+        .dl-progress{margin-top:6px;display:none}
+        .dl-progress.show{display:block}
+        .dl-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:4px}
+        .dl-fill{height:100%;width:0%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--accent3));transition:width 0.2s}
+        .dl-info{display:flex;justify-content:space-between;font-size:9px;color:var(--muted)}
+        .dl-speed{color:var(--accent3);font-weight:600}
+
+        /* DOWNLOAD MANAGER PANEL */
+        .dl-manager{background:var(--panel);border:1px solid var(--border2);border-radius:10px;padding:16px 18px;margin-bottom:20px;display:none;animation:fadeUp 0.3s ease}
+        .dl-manager.show{display:block}
+        .dl-manager-title{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+        .dl-manager-title::before{content:'';width:6px;height:6px;background:var(--accent3);border-radius:50%;animation:pulse 1.5s ease infinite}
+        .dl-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(22,32,48,0.5)}
+        .dl-item:last-child{border-bottom:none}
+        .dl-item-emoji{font-size:20px;width:28px;text-align:center}
+        .dl-item-info{flex:1;min-width:0}
+        .dl-item-name{font-size:12px;font-weight:600;color:var(--white);margin-bottom:3px}
+        .dl-item-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+        .dl-item-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--accent3));transition:width 0.3s}
+        .dl-item-pct{font-size:10px;color:var(--accent);min-width:35px;text-align:right;font-family:'Rajdhani',sans-serif;font-weight:700}
+        .dl-item-speed{font-size:9px;color:var(--muted);min-width:60px;text-align:right}
+
+        /* STATS CARDS */
+        .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+        .stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;animation:fadeUp 0.4s ease both}
+        .stat-val{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;color:var(--accent)}
+        .stat-lbl{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+
+        /* ADMIN */
+        .admin-panel{background:var(--panel);border:1px solid var(--border2);border-radius:12px;padding:24px;margin-bottom:24px;position:relative;overflow:hidden;animation:fadeUp 0.4s ease}
+        .admin-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+        .admin-title{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:20px;display:flex;align-items:center;gap:8px}
+        .admin-title::before{content:'👑';font-size:16px}
+        .upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+        .field-group{display:flex;flex-direction:column;gap:6px}
+        .field-label{font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+        .field-input{padding:9px 12px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:7px;color:var(--white);font-family:'Exo 2',sans-serif;font-size:12px;outline:none;transition:border-color 0.3s}
+        .field-input:focus{border-color:var(--gold)}
+        .field-input::placeholder{color:var(--muted)}
+        textarea.field-input{resize:vertical;min-height:70px}
+        .emoji-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+        .emoji-btn{width:32px;height:32px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,0.2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+        .emoji-btn:hover{border-color:var(--gold);background:rgba(255,170,0,0.1)}
+        .emoji-btn.selected{border-color:var(--gold);background:rgba(255,170,0,0.15);box-shadow:0 0 8px rgba(255,170,0,0.2)}
+        .dropzone{border:2px dashed var(--border2);border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:all 0.3s;position:relative}
+        .dropzone:hover,.dropzone.drag{border-color:var(--gold);background:rgba(255,170,0,0.04)}
+        .dropzone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+        .dropzone-icon{font-size:28px;margin-bottom:8px}
+        .dropzone-text{font-size:12px;color:var(--muted)}
+        .dropzone-text strong{color:var(--gold)}
+        .dropzone-file{font-size:11px;color:var(--accent3);margin-top:6px;font-weight:600}
+        .btn-upload{padding:11px 28px;background:linear-gradient(135deg,var(--gold),#cc8800);border:none;border-radius:7px;color:#000;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all 0.2s;box-shadow:0 3px 14px rgba(255,170,0,0.3)}
+        .btn-upload:hover{transform:translateY(-1px);box-shadow:0 5px 20px rgba(255,170,0,0.5)}
+        .btn-upload:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+        .alert{padding:9px 13px;border-radius:6px;font-size:11px;margin-bottom:12px;display:none}
+        .alert-error{background:rgba(255,64,96,0.08);border:1px solid rgba(255,64,96,0.2);color:var(--red)}
+        .alert-success{background:rgba(0,255,170,0.08);border:1px solid rgba(0,255,170,0.2);color:var(--accent3)}
+        .up-progress{display:none;margin-top:12px}
+        .up-progress.show{display:block}
+        .up-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+        .up-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--gold),var(--accent3));border-radius:2px;transition:width 0.3s}
+        .up-label{font-size:10px;color:var(--muted);margin-top:5px}
+        .admin-games-list{display:flex;flex-direction:column;gap:8px}
+        .admin-game-row{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
+        .agr-emoji{font-size:22px;width:32px;text-align:center}
+        .agr-info{flex:1;min-width:0}
+        .agr-title{font-size:13px;font-weight:600;color:var(--white)}
+        .agr-sub{font-size:10px;color:var(--muted)}
+        .agr-size{font-size:11px;color:var(--accent);min-width:60px;text-align:right}
+        .agr-dl{font-size:10px;color:var(--accent3);min-width:50px;text-align:right}
+        .btn-del-jeu{padding:4px 10px;background:transparent;border:1px solid rgba(255,64,96,0.2);border-radius:4px;color:var(--red);font-size:10px;cursor:pointer;transition:all 0.2s;flex-shrink:0}
+        .btn-del-jeu:hover{background:rgba(255,64,96,0.1)}
+
+        /* MODAL */
+        .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+        .modal.show{display:flex}
+        .modal-box{background:var(--panel);border:1px solid var(--border2);border-radius:14px;width:460px;max-width:90vw;overflow:hidden;animation:fadeUp 0.3s ease;box-shadow:0 30px 80px rgba(0,0,0,0.6)}
+        .modal-head{padding:22px 26px 0;display:flex;justify-content:space-between;align-items:center}
+        .modal-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:var(--white);letter-spacing:1px}
+        .modal-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;transition:color 0.2s}
+        .modal-close:hover{color:var(--white)}
+        .modal-body{padding:18px 26px 26px}
+        .modal-thumb{width:100%;height:120px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:56px;margin-bottom:16px}
+        .modal-desc{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:16px}
+        .modal-specs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+        .spec{background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:6px;padding:9px 11px}
+        .spec-lbl{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:3px}
+        .spec-val{font-size:12px;font-weight:600;color:var(--white)}
+
+        /* modal download progress */
+        .modal-dl-progress{margin-bottom:16px;display:none}
+        .modal-dl-progress.show{display:block}
+        .mdp-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:6px}
+        .mdp-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:3px;transition:width 0.3s}
+        .mdp-info{display:flex;justify-content:space-between;font-size:11px}
+        .mdp-pct{color:var(--accent);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px}
+        .mdp-speed{color:var(--accent3)}
+        .mdp-eta{color:var(--muted)}
+
+        .btn-primary{padding:11px 24px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:7px;color:white;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all 0.2s;box-shadow:0 3px 14px rgba(0,170,255,0.3)}
+        .btn-primary:hover{transform:translateY(-1px);box-shadow:0 5px 20px rgba(0,170,255,0.5)}
+        .btn-primary:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+        .btn-ghost{padding:11px 18px;background:transparent;border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s}
+        .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+        .spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,0.2);border-top-color:white;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;vertical-align:middle;margin-right:5px}
+        .cloud-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(260px,1fr);gap:16px;align-items:start}
+        .cloud-panel{background:var(--panel);border:1px solid var(--border2);border-radius:12px;padding:22px;animation:fadeUp .35s ease}
+        .cloud-title{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:2px;color:var(--white);margin-bottom:7px}
+        .cloud-sub{font-size:11px;color:var(--muted);line-height:1.55;margin-bottom:18px}
+        .cloud-status{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text);margin-bottom:16px}
+        .cloud-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);box-shadow:0 0 8px currentColor}
+        .cloud-dot.online{background:var(--accent3);color:var(--accent3)}
+        .cloud-dot.offline{background:var(--red);color:var(--red)}
+        .cloud-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+        .optimization-list{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+        .optimization-item{display:flex;gap:10px;align-items:flex-start;padding:11px;background:rgba(0,0,0,.18);border:1px solid var(--border);border-radius:8px}
+        .optimization-icon{font-size:17px}.optimization-copy{font-size:11px;color:var(--text);line-height:1.45}.optimization-copy strong{display:block;color:var(--white);margin-bottom:2px}
+        .library-toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap}
+        .library-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+        .library-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;animation:fadeUp .35s ease}
+        .library-card-icon{width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,#16375a,#0d1e38);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+        .library-card-info{flex:1;min-width:0}.library-card-name{font-size:12px;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.library-card-size{font-size:10px;color:var(--muted);margin-top:3px}
+        .btn-library{padding:6px 10px;background:rgba(0,170,255,.09);border:1px solid rgba(0,170,255,.22);border-radius:5px;color:var(--accent);font-size:10px;cursor:pointer;white-space:nowrap}.btn-library:hover{border-color:var(--accent);background:rgba(0,170,255,.16)}
+        /* DISCOVERY / STORE */
+        .topbar{gap:10px}
+        .filter-tabs{overflow-x:auto;max-width:min(46vw,560px);scrollbar-width:none;flex-shrink:1}
+        .filter-tabs::-webkit-scrollbar{display:none}
+        .sort-select{padding:7px 28px 7px 10px;background:#101d2d;border:1px solid var(--border2);border-radius:6px;color:var(--text);font:11px 'Exo 2',sans-serif;outline:none;cursor:pointer}
+        .sort-select:focus{border-color:var(--accent)}
+        .hero{position:relative;min-height:310px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(220px,.75fr);align-items:center;overflow:hidden;border:1px solid #24496a;border-radius:16px;margin-bottom:26px;padding:34px 38px;background:radial-gradient(ellipse at 78% 46%,rgba(0,170,255,.25),transparent 34%),linear-gradient(115deg,#10213a 0%,#0b1627 56%,#101d32 100%);box-shadow:0 18px 48px rgba(0,0,0,.26);isolation:isolate}
+        .hero::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,12,20,.1),transparent 66%),radial-gradient(circle at 72% 85%,rgba(0,255,170,.09),transparent 30%);z-index:-1}
+        .hero-copy{max-width:610px;z-index:1}
+        .hero-kicker{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid rgba(0,255,170,.25);border-radius:30px;background:rgba(0,255,170,.07);color:var(--accent3);font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+        .hero-kicker::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent3);box-shadow:0 0 10px var(--accent3)}
+        .hero-title{font:700 clamp(32px,4.2vw,56px)/.96 'Rajdhani',sans-serif;letter-spacing:1px;color:#fff;text-transform:uppercase;margin-bottom:12px;text-shadow:0 5px 26px rgba(0,0,0,.4)}
+        .hero-meta{display:flex;align-items:center;gap:9px;color:#91aac5;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+        .hero-meta-dot{width:3px;height:3px;border-radius:50%;background:var(--accent)}
+        .hero-description{max-width:520px;color:#b6c8dc;font-size:13px;line-height:1.6;margin-bottom:20px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+        .hero-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+        .hero-actions .btn-primary{min-width:150px}
+        .hero-art{position:relative;height:235px;display:flex;align-items:center;justify-content:center}
+        .hero-orbit{position:absolute;width:220px;height:220px;border-radius:50%;border:1px solid rgba(0,170,255,.16);box-shadow:0 0 55px rgba(0,170,255,.12),inset 0 0 45px rgba(0,170,255,.08)}
+        .hero-orbit::before,.hero-orbit::after{content:'';position:absolute;border-radius:50%;border:1px solid rgba(0,255,170,.12);inset:18px}
+        .hero-orbit::after{inset:38px;border-color:rgba(255,255,255,.08)}
+        .hero-emoji{font-size:clamp(95px,13vw,154px);filter:drop-shadow(0 18px 24px rgba(0,0,0,.55));animation:heroFloat 5s ease-in-out infinite;z-index:1}
+        @keyframes heroFloat{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-8px) rotate(3deg)}}
+        .hero-count{position:absolute;right:0;bottom:0;padding:7px 10px;border:1px solid rgba(255,255,255,.1);border-radius:7px;background:rgba(5,12,22,.62);color:#d7e8f8;font-size:10px;backdrop-filter:blur(8px)}
+        .discover-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 27px}
+        .discover-stat{display:flex;align-items:center;gap:11px;padding:13px 15px;background:linear-gradient(135deg,rgba(13,25,41,.9),rgba(10,19,32,.72));border:1px solid var(--border);border-radius:9px}
+        .discover-stat-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:8px;background:rgba(0,170,255,.1);font-size:16px}
+        .discover-stat-value{font:700 17px 'Rajdhani',sans-serif;color:var(--white)}
+        .discover-stat-label{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:1px}
+        .shelf{margin-bottom:28px}
+        .shelf-link{border:0;background:none;color:var(--accent);font:600 10px 'Exo 2',sans-serif;cursor:pointer;padding:5px 0}
+        .shelf-link:hover{color:#8cdbff}
+        .game-card{position:relative}
+        .game-thumb{height:150px;overflow:hidden}
+        .game-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.84;transition:transform .35s,opacity .35s}
+        .game-card:hover .game-cover{transform:scale(1.04);opacity:1}
+        .game-thumb.has-cover .game-thumb-emoji{display:none}
+        .game-thumb::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 32%,rgba(0,170,255,.16),transparent 45%);transition:transform .35s,opacity .35s}
+        .game-card:hover .game-thumb::before{transform:scale(1.18);opacity:1.5}
+        .game-thumb-emoji{position:relative;z-index:1;filter:drop-shadow(0 8px 12px rgba(0,0,0,.45));transition:transform .3s}
+        .game-card:hover .game-thumb-emoji{transform:translateY(-4px) scale(1.08)}
+        .game-card-topline{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+        .game-badge{font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--accent3);background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.14);padding:4px 6px;border-radius:4px}
+        .wishlist-btn{width:29px;height:29px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.13);border-radius:50%;background:rgba(4,10,18,.55);color:#a9b8c8;font-size:14px;cursor:pointer;transition:all .18s}
+        .wishlist-btn:hover,.wishlist-btn.saved{color:#ff6682;border-color:rgba(255,64,96,.5);background:rgba(255,64,96,.12)}
+        .game-card .game-title{font-size:16px}
+        .btn-play{width:100%;padding:8px;background:linear-gradient(135deg,#087c59,#07513e);border:1px solid rgba(0,255,170,.25);border-radius:6px;color:#d9fff2;font:700 11px 'Rajdhani',sans-serif;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+        .btn-play:hover{background:linear-gradient(135deg,#0a9b6d,#08664d);box-shadow:0 0 14px rgba(0,255,170,.14)}
+        .hero-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.28;mask-image:linear-gradient(90deg,transparent 15%,black 100%);z-index:0}
+        .hero-feature-art{position:absolute;inset:12% 8%;width:84%;height:76%;object-fit:cover;border-radius:12px;opacity:.76;mask-image:linear-gradient(90deg,transparent,black 30%);filter:drop-shadow(0 18px 24px rgba(0,0,0,.45))}
+        .hero-copy,.hero-art{position:relative;z-index:2}
+        .library-cover{width:46px;height:46px;object-fit:cover;border-radius:8px;flex-shrink:0}
+        .cover-preview{display:none;max-width:220px;max-height:100px;object-fit:cover;border:1px solid var(--border2);border-radius:7px;margin-top:9px}
+        .admin-upload-hint{font-size:10px;color:var(--muted);line-height:1.5;margin-top:6px}
+        .hero-wish{width:42px;height:42px;border-radius:8px;font-size:19px}
+        .library-note{padding:12px 14px;border:1px solid rgba(0,170,255,.18);border-radius:8px;background:rgba(0,170,255,.05);color:#9eb3c8;font-size:11px;line-height:1.5;margin-bottom:16px}
+        .library-game-card{display:flex;align-items:center;gap:13px;padding:13px;background:var(--card);border:1px solid var(--border);border-radius:10px}
+        .library-game-art{width:46px;height:46px;display:grid;place-items:center;border-radius:8px;background:linear-gradient(145deg,#16375a,#0d1e38);font-size:25px;flex-shrink:0}
+        .library-game-info{flex:1;min-width:0}.library-game-title{color:var(--white);font-size:12px;font-weight:700}.library-game-meta{color:var(--muted);font-size:10px;margin-top:4px}
+        .recent-row{display:flex;align-items:center;gap:10px;overflow-x:auto;padding:2px 0 12px}
+        .recent-chip{display:flex;align-items:center;gap:9px;min-width:190px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:rgba(13,25,41,.65);color:var(--text);cursor:pointer;text-align:left}
+        .recent-chip:hover{border-color:var(--border2);background:var(--card)}
+        .recent-chip-icon{font-size:21px}.recent-chip-title{font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        @media(max-width:1040px){.topbar{gap:7px;padding:0 14px}.topbar-title{font-size:14px}.filter-tabs{max-width:34vw}.search-bar{max-width:220px}.hero{padding:28px;min-height:270px}.hero-art{height:205px}}
+        @media(max-width:760px){.cloud-grid{grid-template-columns:1fr}.sidebar{width:190px}.topbar{padding:0 12px}.content{padding:14px}.hero{grid-template-columns:1fr;min-height:auto;padding:24px}.hero-art{position:absolute;right:-35px;top:16px;width:200px;height:180px;opacity:.38}.hero-copy{max-width:100%}.hero-description{max-width:70%}.discover-strip{grid-template-columns:1fr}.filter-tabs{display:none!important}.sort-select{display:none}.topbar-title{white-space:nowrap}}
+        @media(max-width:520px){.sidebar{width:62px}.sidebar-logo{justify-content:center;padding:14px 6px}.logo-text,.user-info,.nav-section,.nav-item:not(.active){display:none}.user-card{justify-content:center;padding:10px 4px}.nav-item{justify-content:center;padding:12px 4px}.nav-count{display:none}.sidebar-bottom{padding:10px 7px}.storage-label{justify-content:center}.storage-label span:first-child{display:none}.topbar{height:auto;min-height:54px;flex-wrap:wrap;padding:9px 12px}.topbar-title{flex:1}.search-bar{order:3;flex-basis:100%;max-width:none}.hero-title{font-size:34px}.hero-description{max-width:100%}.hero-art{right:-72px;opacity:.24}.games-grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:9px}.game-thumb{height:115px}.game-info{padding:9px}.game-card .game-title{font-size:14px}.stats-row{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-gem">◈</div>
+            <div class="logo-text">Game<span>Vault</span></div>
+        </div>
+        <div class="user-card">
+            <div class="avatar">🎮</div>
+            <div class="user-info">
+                <div class="u-name" id="sb-name">Joueur</div>
+                <div class="u-role" id="sb-role">joueur</div>
+            </div>
+        </div>
+        <nav class="nav">
+            <div class="nav-section">Boutique</div>
+            <div class="nav-item active" onclick="setTab('home',this)">
+                <span class="nav-icon">✨</span> Découvrir
+            </div>
+            <div class="nav-item" onclick="setTab('all',this)">
+                <span class="nav-icon">🏠</span> Tous les jeux
+                <span class="nav-count" id="cnt-all">0</span>
+            </div>
+            <div class="nav-item" onclick="setTab('wishlist',this)">
+                <span class="nav-icon">♡</span> Liste de souhaits
+                <span class="nav-count" id="cnt-wishlist">0</span>
+            </div>
+            <div class="nav-item" onclick="setTab('stats',this)">
+                <span class="nav-icon">📊</span> Statistiques
+            </div>
+            <div class="nav-section">Mon compte</div>
+            <div class="nav-item" id="nav-profile" onclick="window.location='accounts.html'">
+                <span class="nav-icon">👤</span> Mon profil
+            </div>
+            <div class="nav-item" id="nav-cloud" onclick="setTab('cloud',this)">
+                <span class="nav-icon">☁️</span> Cloud & optimisation
+            </div>
+            <div class="nav-item" onclick="setTab('library',this)">
+                <span class="nav-icon">🗂️</span> Ma bibliothèque
+                <span class="nav-count" id="cnt-library">0</span>
+            </div>
+            <div class="nav-item" id="nav-admin" style="display:none" onclick="setTab('admin',this)">
+                <span class="nav-icon">👑</span> Gérer les jeux
+            </div>
+            <div class="nav-item" onclick="doLogout()">
+                <span class="nav-icon">🚪</span> <span id="nav-auth-label">Déconnexion</span>
+            </div>
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="storage-label">
+                <span>Jeux disponibles</span>
+                <span id="sb-count" style="color:var(--text)">0</span>
+            </div>
+            <div class="storage-bar">
+                <div class="storage-fill" id="sb-bar"></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+        <header class="topbar">
+            <div class="topbar-title" id="topbar-title">Boutique</div>
+            <div class="filter-tabs" id="filter-tabs">
+                <button class="ftab active" onclick="filterGenre('',this)">Tous</button>
+            </div>
+            <div class="search-bar" id="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="search" placeholder="Titre, genre, description…" oninput="searchGames(this.value)" id="search-input">
+            </div>
+            <select class="sort-select" id="sort-select" aria-label="Trier les jeux" onchange="changeSort(this.value)">
+                <option value="popular">Populaires</option>
+                <option value="recent">Nouveautés</option>
+                <option value="name">Nom A–Z</option>
+                <option value="downloads">Plus téléchargés</option>
+            </select>
+        </header>
+
+        <div class="content" id="content">
+            <div style="text-align:center;padding:80px;color:var(--muted)">
+                <div style="font-size:32px;margin-bottom:12px;animation:spin 1s linear infinite;display:inline-block">⟳</div>
+                <div style="font-size:12px;letter-spacing:2px">CHARGEMENT...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+    <div class="modal-box">
+        <div class="modal-head">
+            <div class="modal-title" id="m-title">Jeu</div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-thumb" id="m-thumb"></div>
+            <div class="modal-desc" id="m-desc"></div>
+            <div class="modal-specs" id="m-specs"></div>
+
+            <!-- Barre de progression modale -->
+            <div class="modal-dl-progress" id="mdp">
+                <div class="mdp-bar"><div class="mdp-fill" id="mdp-fill"></div></div>
+                <div class="mdp-info">
+                    <span class="mdp-pct" id="mdp-pct">0%</span>
+                    <span class="mdp-speed" id="mdp-speed">— Ko/s</span>
+                    <span class="mdp-eta" id="mdp-eta">Calcul...</span>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:10px">
+                <button class="wishlist-btn hero-wish" id="m-wish-btn" aria-label="Ajouter à la liste de souhaits">♡</button>
+                <button class="btn-primary" style="flex:1" id="m-dl-btn">⬇ Télécharger</button>
+                <button class="btn-ghost" id="m-close-btn" onclick="closeModal()">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '';
+let session = JSON.parse(sessionStorage.getItem('gv_session') || 'null');
+let allJeux = [], currentGenre = '', currentSearch = '', currentTab = 'home', currentSort = 'popular';
+let installedGames = new Set();
+let selectedEmoji = '🎮', selectedFile = null, selectedCover = null, coverPreviewUrl = '';
+let activeDownloads = {};
+const browserScope = encodeURIComponent(String(session?.id || session?.email || 'default'));
+const WISHLIST_KEY = `gamevault_wishlist_${browserScope}`;
+const RECENT_KEY = `gamevault_recent_${browserScope}`;
+const BROWSER_LIBRARY_KEY = `gamevault_browser_library_${browserScope}`;
+function readStoredList(key) {
+    try { const value = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(value) ? value : []; }
+    catch (_) { return []; }
+}
+let wishlist = new Set(readStoredList(WISHLIST_KEY).map(String));
+let recentlyViewed = readStoredList(RECENT_KEY).map(String);
+if (session && !session.token) { session = null; sessionStorage.removeItem('gv_session'); }
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+}
+
+document.getElementById('sb-name').textContent = session?.name || 'Visiteur';
+document.getElementById('sb-role').textContent = session?.role === 'admin' ? '👑 Admin' : session ? '🎮 Joueur' : 'Mode découverte';
+if (!session) {
+    document.getElementById('nav-profile').style.display = 'none';
+    document.getElementById('nav-cloud').style.display = 'none';
+    document.getElementById('nav-auth-label').textContent = 'Se connecter';
+}
+if (session?.role === 'admin') document.getElementById('nav-admin').style.display = 'flex';
+
+function doLogout() { if (session) apiPost('/api/logout', {}).catch(() => {}); sessionStorage.removeItem('gv_session'); window.location = 'accounts.html'; }
+
+async function apiGet(r) { const headers = session?.token ? {Authorization:`Bearer ${session.token}`} : {}; const res = await fetch(API+r,{headers}); return res.json(); }
+async function apiPost(r,b) { const headers = { 'Content-Type':'application/json', ...(session?.token ? {Authorization:`Bearer ${session.token}`} : {}) }; const res = await fetch(API+r,{method:'POST',headers,body:JSON.stringify(b)}); return res.json(); }
+
+// ── Charger catalogue
+async function loadCatalogue() {
+    try {
+        const data = await apiGet('/api/catalogue');
+        allJeux = data.jeux || [];
+        await refreshInstalledGames();
+        updateSidebar(); buildGenreFilters(); renderView();
+    } catch(e) {
+        document.getElementById('content').innerHTML = `<div class="empty-state"><div class="empty-icon">⚡</div><div class="empty-title">SERVEUR HORS LIGNE</div><div class="empty-sub">Lance serveur_local.py</div></div>`;
+    }
+}
+
+async function refreshInstalledGames() {
+    if (!session) { installedGames = new Set(); return; }
+    try {
+        const data = await apiGet('/api/library');
+        installedGames = new Set((data.games || []).map(game => String(game.id)));
+    } catch (_) { installedGames = new Set(); }
+}
+
+function updateSidebar() {
+    document.getElementById('cnt-all').textContent = allJeux.length;
+    document.getElementById('cnt-wishlist').textContent = wishlist.size;
+    const libraryCount = document.getElementById('cnt-library');
+    libraryCount.textContent = installedGames.size;
+    document.getElementById('sb-count').textContent = allJeux.length + ' jeux';
+    document.getElementById('sb-bar').style.width = Math.min(100, allJeux.length * 10) + '%';
+}
+
+function buildGenreFilters() {
+    const genres = [...new Set(allJeux.map(j => j.genre).filter(Boolean))];
+    const tabs = document.getElementById('filter-tabs');
+    tabs.innerHTML = [['', 'Tous'], ...genres.map(g => [g, g])].map(([value, label]) =>
+        `<button class="ftab ${currentGenre===value?'active':''}" data-genre="${escapeHtml(value)}">${escapeHtml(label)}</button>`
+    ).join('');
+    tabs.querySelectorAll('.ftab').forEach(button => button.addEventListener('click', () => filterGenre(button.dataset.genre, button)));
+}
+
+function setTab(tab, el) {
+    currentTab = tab;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const showFilters = ['home', 'all', 'wishlist'].includes(tab);
+    document.getElementById('filter-tabs').style.display = showFilters ? 'flex' : 'none';
+    document.getElementById('search-wrap').style.display = showFilters ? 'block' : 'none';
+    document.getElementById('sort-select').style.display = showFilters ? 'block' : 'none';
+    document.getElementById('topbar-title').textContent = ({home:'Découvrir', all:'Boutique', wishlist:'Liste de souhaits', admin:'Gérer les jeux', stats:'Statistiques', cloud:'Cloud & optimisation', library:'Ma bibliothèque'})[tab] || 'Boutique';
+    renderView();
+}
+
+function renderView() {
+    if (currentTab === 'home') renderFeatured();
+    else if (currentTab === 'wishlist') renderWishlist();
+    else if (currentTab === 'admin' && session?.role === 'admin') renderAdmin();
+    else if (currentTab === 'stats') renderStats();
+    else if (currentTab === 'cloud') renderCloud();
+    else if (currentTab === 'library') renderLibrary();
+    else renderBoutique();
+}
+
+function sortGames(games) {
+    const copy = [...games];
+    if (currentSort === 'name') return copy.sort((a,b) => a.titre.localeCompare(b.titre, 'fr'));
+    if (currentSort === 'recent') return copy.sort((a,b) => Number(b.id) - Number(a.id));
+    return copy.sort((a,b) => Number(b.telechargements || 0) - Number(a.telechargements || 0) || Number(b.id) - Number(a.id));
+}
+
+function getFiltered(source = allJeux) {
+    const term = currentSearch.trim().toLocaleLowerCase('fr');
+    return sortGames(source.filter(j => {
+        const matchesGenre = !currentGenre || j.genre === currentGenre;
+        const searchable = `${j.titre || ''} ${j.genre || ''} ${j.description || ''}`.toLocaleLowerCase('fr');
+        return matchesGenre && (!term || searchable.includes(term));
+    }));
+}
+
+function changeSort(value) { currentSort = value; renderView(); }
+
+function wishlistButtonMarkup(id, extraClass = '') {
+    const safeId = String(id).replace(/[^a-zA-Z0-9_-]/g, '');
+    const saved = wishlist.has(String(id));
+    return `<button class="wishlist-btn ${saved?'saved':''} ${extraClass}" data-wishlist-id="${safeId}" aria-label="${saved?'Retirer de':'Ajouter à'} la liste de souhaits" title="${saved?'Retirer de':'Ajouter à'} la liste de souhaits" onclick="toggleWishlist('${safeId}',event)">${saved?'♥':'♡'}</button>`;
+}
+
+function gameCardMarkup(j, i = 0, badge = '') {
+    const id = String(j.id).replace(/[^a-zA-Z0-9_-]/g, '');
+    const cardId = `${id}-${String(badge||'catalogue').replace(/[^a-zA-Z0-9_-]/g,'')}-${i}`;
+    const colors = ['#102747,#0a1422','#17243a,#131a2c','#12313a,#101b27','#28203a,#131725'];
+    const cover = j.image ? `/media/covers/${encodeURIComponent(j.image)}` : '';
+    const installed = installedGames.has(String(j.id));
+    return `<article class="game-card" style="animation-delay:${Math.min(i,8)*.045}s" onclick="openModal('${id}')">
+        <div class="game-thumb ${cover?'has-cover':''}" style="background:linear-gradient(140deg,${colors[i%colors.length]})">${cover?`<img class="game-cover" src="${cover}" alt="Jaquette de ${escapeHtml(j.titre)}" loading="lazy">`:''}<span class="game-thumb-emoji">${escapeHtml(j.emoji||'🎮')}</span></div>
+        <div class="game-info"><div class="game-card-topline"><span class="game-badge">${escapeHtml(badge||j.genre||'Jeu')}</span>${wishlistButtonMarkup(id)}</div>
+            <div class="game-title">${escapeHtml(j.titre)}</div><div class="game-genre">${escapeHtml(j.genre||'Jeu')}</div>
+            <div class="game-meta"><span class="game-size">📦 ${escapeHtml(j.taille||'—')}</span><span class="game-dl-count">⬇ ${Number(j.telechargements||0)}</span></div>
+            <div class="dl-wrap"><button class="${installed?'btn-play':'btn-dl'}" onclick="event.stopPropagation();${installed?`launchGame('${id}')`:`startDownload('${id}',this)`}">${installed?'▶ Jouer':'⬇ Installer'}</button>
+                <div class="dl-progress" id="prog-${cardId}"><div class="dl-bar"><div class="dl-fill" id="fill-${cardId}"></div></div><div class="dl-info"><span id="pct-${cardId}">0%</span><span class="dl-speed" id="spd-${cardId}">— Ko/s</span></div></div>
+            </div>
+        </div>
+    </article>`;
+}
+
+function renderShelf(title, games, badge) {
+    if (!games.length) return '';
+    return `<section class="shelf"><div class="section-hdr"><div class="section-title">${escapeHtml(title)}</div><button class="shelf-link" onclick="setTab('all',document.querySelectorAll('.nav-item')[1])">Tout voir →</button></div><div class="games-grid">${games.map((j,i)=>gameCardMarkup(j,i,badge)).join('')}</div></section>`;
+}
+
+function renderFeatured() {
+    const content = document.getElementById('content');
+    const filtered = getFiltered();
+    if (!filtered.length) {
+        content.innerHTML = `<div class="empty-state"><div class="empty-icon">✨</div><div class="empty-title">RIEN À DÉCOUVRIR ICI</div><div class="empty-sub">Essaie une autre recherche ou enlève un filtre.</div></div>`;
+        return;
+    }
+    const featured = filtered[0];
+    const popular = sortGames(filtered).slice(0,4);
+    const newest = [...filtered].sort((a,b)=>Number(b.id)-Number(a.id)).slice(0,4);
+    const recent = recentlyViewed.map(id=>allJeux.find(j=>String(j.id)===id)).filter(Boolean).slice(0,6);
+    const genres = new Set(allJeux.map(j=>j.genre).filter(Boolean)).size;
+    const featuredId = String(featured.id).replace(/[^a-zA-Z0-9_-]/g,'');
+    const featuredCover = featured.image ? `<img class="hero-cover" src="/media/covers/${encodeURIComponent(featured.image)}" alt="">` : '';
+    content.innerHTML = `<section class="hero">${featuredCover}<div class="hero-copy"><div class="hero-kicker">À la une · sélection GameVault</div>
+        <h1 class="hero-title">${escapeHtml(featured.titre)}</h1><div class="hero-meta"><span>${escapeHtml(featured.genre||'Jeu')}</span><span class="hero-meta-dot"></span><span>${escapeHtml(featured.taille||'Taille inconnue')}</span><span class="hero-meta-dot"></span><span>${Number(featured.telechargements||0)} téléchargements</span></div>
+        <p class="hero-description">${escapeHtml(featured.description||'Une nouvelle aventure vous attend dans la bibliothèque GameVault.')}</p>
+        <div class="hero-actions"><button class="btn-primary" onclick="openModal('${featuredId}')">Découvrir le jeu&nbsp; →</button>${wishlistButtonMarkup(featured.id,'hero-wish')}<span style="font-size:10px;color:var(--muted)">Ajouter à ma liste</span></div></div>
+        <div class="hero-art"><div class="hero-orbit"></div>${featuredCover?`<img class="hero-feature-art" src="/media/covers/${encodeURIComponent(featured.image)}" alt="">`:''}<div class="hero-emoji">${escapeHtml(featured.emoji||'🎮')}</div><div class="hero-count">⬇ ${Number(featured.telechargements||0)} téléchargements</div></div></section>
+        <div class="discover-strip"><div class="discover-stat"><div class="discover-stat-icon">🎮</div><div><div class="discover-stat-value">${allJeux.length}</div><div class="discover-stat-label">Jeux au catalogue</div></div></div>
+        <div class="discover-stat"><div class="discover-stat-icon">🧭</div><div><div class="discover-stat-value">${genres}</div><div class="discover-stat-label">Genres à explorer</div></div></div>
+        <div class="discover-stat"><div class="discover-stat-icon">♥</div><div><div class="discover-stat-value">${wishlist.size}</div><div class="discover-stat-label">Jeux souhaités</div></div></div></div>
+        ${recent.length?`<section class="shelf"><div class="section-hdr"><div class="section-title">Repris récemment</div></div><div class="recent-row">${recent.map(j=>`<button class="recent-chip" onclick="openModal('${String(j.id).replace(/[^a-zA-Z0-9_-]/g,'')}')"><span class="recent-chip-icon">${escapeHtml(j.emoji||'🎮')}</span><span class="recent-chip-title">${escapeHtml(j.titre)}</span></button>`).join('')}</div></section>`:''}
+        ${renderShelf('Les plus populaires',popular,'Tendance')}${renderShelf('Fraîchement ajoutés',newest,'Nouveauté')}`;
+}
+
+function renderBoutique() {
+    const filtered = getFiltered();
+    const content = document.getElementById('content');
+    if (!filtered.length) {
+        content.innerHTML = `<div class="empty-state"><div class="empty-icon">🎮</div><div class="empty-title">AUCUN JEU TROUVÉ</div><div class="empty-sub">Modifie tes filtres ou essaie un autre mot-clé.</div></div>`;
+        return;
+    }
+    content.innerHTML = `<div class="section-hdr"><div class="section-title">Tous les jeux</div><div class="section-count">${filtered.length} résultat${filtered.length>1?'s':''}</div></div><div class="games-grid">${filtered.map((j,i)=>gameCardMarkup(j,i)).join('')}</div>`;
+}
+
+function renderWishlist() {
+    const games = getFiltered(allJeux.filter(j=>wishlist.has(String(j.id))));
+    const content = document.getElementById('content');
+    if (!games.length) {
+        content.innerHTML = `<div class="empty-state"><div class="empty-icon">♡</div><div class="empty-title">TA LISTE COMMENCE ICI</div><div class="empty-sub">Garde une trace des jeux qui t’intéressent en appuyant sur le cœur d’une fiche.</div><button class="btn-primary" style="margin-top:18px" onclick="setTab('all',document.querySelectorAll('.nav-item')[1])">Explorer les jeux</button></div>`;
+        return;
+    }
+    content.innerHTML = `<div class="section-hdr"><div><div class="section-title">Mes envies de jeu</div><div style="font-size:11px;color:var(--muted);margin-top:6px">Cette liste est enregistrée dans ce navigateur.</div></div><div class="section-count">${games.length} jeu${games.length>1?'x':''}</div></div><div class="games-grid">${games.map((j,i)=>gameCardMarkup(j,i,'Dans ma liste')).join('')}</div>`;
+}
+
+function toggleWishlist(id, event) {
+    event?.stopPropagation(); id=String(id);
+    if(wishlist.has(id)) wishlist.delete(id); else wishlist.add(id);
+    localStorage.setItem(WISHLIST_KEY,JSON.stringify([...wishlist])); updateSidebar();
+    document.querySelectorAll(`[data-wishlist-id="${CSS.escape(id)}"]`).forEach(button=>{const saved=wishlist.has(id);button.classList.toggle('saved',saved);button.textContent=saved?'♥':'♡';button.setAttribute('aria-label',`${saved?'Retirer de':'Ajouter à'} la liste de souhaits`);});
+    const modalButton=document.getElementById('m-wish-btn');
+    if(modalButton?.dataset.gameId===id){const saved=wishlist.has(id);modalButton.textContent=saved?'♥':'♡';modalButton.classList.toggle('saved',saved);}
+    const wishlistStat=document.querySelectorAll('.discover-stat-value')[2];
+    if(wishlistStat) wishlistStat.textContent=wishlist.size;
+    if(currentTab==='wishlist') renderWishlist();
+}
+
+function filterGenre(genre, btn) {
+    currentGenre = genre;
+    document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    renderView();
+}
+function searchGames(val) { currentSearch = val; renderView(); }
+function markRecentlyViewed(id) {
+    recentlyViewed=[String(id),...recentlyViewed.filter(value=>value!==String(id))].slice(0,8);
+    localStorage.setItem(RECENT_KEY,JSON.stringify(recentlyViewed));
+}
+function markBrowserDownloaded(game) {
+    const entries=readStoredList(BROWSER_LIBRARY_KEY).filter(item=>String(item.id)!==String(game.id));
+    entries.unshift({id:String(game.id),titre:game.titre,fichier:game.fichier,taille:game.taille,emoji:game.emoji,downloadedAt:new Date().toISOString()});
+    localStorage.setItem(BROWSER_LIBRARY_KEY,JSON.stringify(entries.slice(0,100))); updateSidebar();
+}
+
+// ── Installation locale et lancement du jeu
+async function installGame(id, button) {
+    if (!session) { alert('Connecte-toi pour installer un jeu dans ta bibliothèque.'); return false; }
+    if (button) { button.disabled = true; button.innerHTML = '<span class="spinner"></span> Installation…'; }
+    try {
+        const result = await apiPost('/api/library/install', {id:String(id)});
+        if (!result.success) throw new Error(result.error || 'Installation impossible');
+        await refreshInstalledGames(); updateSidebar();
+        if (button) { button.disabled = false; button.className = 'btn-play'; button.textContent = '▶ Jouer'; button.onclick = event => { event.stopPropagation(); launchGame(id); }; }
+        if (currentTab === 'library') renderLibrary();
+        return true;
+    } catch (error) {
+        if (button) { button.disabled = false; button.textContent = '↻ Réessayer'; }
+        alert(error.message || 'Installation impossible.'); return false;
+    }
+}
+
+async function launchGame(id) {
+    if (!session) { alert('Connecte-toi pour lancer un jeu.'); return; }
+    const jeu = allJeux.find(item => String(item.id) === String(id));
+    if (!confirm(`Lancer « ${jeu?.titre || 'ce jeu'} » sur cet ordinateur ?`)) return;
+    try {
+        const result = await apiPost('/api/library/launch', {id:String(id)});
+        if (!result.success) throw new Error(result.error || 'Lancement impossible');
+    } catch (error) { alert(error.message || 'Lancement impossible.'); }
+}
+
+async function startDownload(id, btn) { return installGame(id, btn); }
+
+// ── MODAL avec progression
+function openModal(id) {
+    const j = allJeux.find(g => String(g.id) === String(id));
+    if (!j) return;
+    markRecentlyViewed(j.id);
+    document.getElementById('m-title').textContent = j.titre;
+    document.getElementById('m-thumb').innerHTML = j.image ? `<img src="/media/covers/${encodeURIComponent(j.image)}" alt="Jaquette" style="width:100%;height:100%;object-fit:cover;border-radius:8px">` : `<div style="width:100%;height:100%;background:radial-gradient(circle at 50% 35%,rgba(0,170,255,.22),transparent 55%),linear-gradient(135deg,#0a1525,#0d2040);display:flex;align-items:center;justify-content:center;font-size:68px;border-radius:8px">${escapeHtml(j.emoji||'🎮')}</div>`;
+    document.getElementById('m-desc').textContent = j.description || 'Pas de description.';
+    document.getElementById('m-specs').innerHTML = `
+        <div class="spec"><div class="spec-lbl">Taille</div><div class="spec-val">📦 ${escapeHtml(j.taille||'—')}</div></div>
+        <div class="spec"><div class="spec-lbl">Genre</div><div class="spec-val">${escapeHtml(j.genre||'Jeu')}</div></div>
+        <div class="spec"><div class="spec-lbl">Téléchargements</div><div class="spec-val">⬇ ${Number(j.telechargements||0)}</div></div>
+        <div class="spec"><div class="spec-lbl">Ajouté le</div><div class="spec-val">${escapeHtml(j.date||'—')}</div></div>
+    `;
+
+    // Reset progress
+    const mdp = document.getElementById('mdp');
+    mdp.classList.remove('show');
+    document.getElementById('mdp-fill').style.width = '0%';
+    document.getElementById('mdp-pct').textContent = '0%';
+    document.getElementById('mdp-speed').textContent = '— Ko/s';
+    document.getElementById('mdp-eta').textContent = 'En attente...';
+
+    const dlBtn = document.getElementById('m-dl-btn');
+    dlBtn.disabled = false;
+    dlBtn.innerHTML = installedGames.has(String(id)) ? '▶ Jouer' : '⬇ Installer';
+    dlBtn.onclick = () => installedGames.has(String(id)) ? launchGame(id) : startModalDownload(id, j);
+    const wishButton = document.getElementById('m-wish-btn');
+    wishButton.dataset.gameId = String(j.id);
+    wishButton.textContent = wishlist.has(String(j.id)) ? '♥' : '♡';
+    wishButton.classList.toggle('saved', wishlist.has(String(j.id)));
+    wishButton.onclick = (event) => toggleWishlist(j.id, event);
+
+    document.getElementById('modal').classList.add('show');
+}
+
+async function startModalDownload(id, jeu) {
+    const button = document.getElementById('m-dl-btn');
+    if (installedGames.has(String(id))) { await launchGame(id); return; }
+    const installed = await installGame(id, button);
+    if (installed) {
+        button.textContent = '▶ Jouer';
+        button.onclick = () => launchGame(id);
+        document.getElementById('mdp').classList.remove('show');
+    }
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+// ── STATS
+async function renderStats() {
+    const content = document.getElementById('content');
+    content.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)"><div style="animation:spin 1s linear infinite;display:inline-block;font-size:24px">⟳</div></div>`;
+    try {
+        const data = await apiGet('/api/stats');
+        content.innerHTML = `
+            <div class="stats-row">
+                <div class="stat-card"><div class="stat-val">${data.total_jeux}</div><div class="stat-lbl">Jeux publiés</div></div>
+                <div class="stat-card" style="animation-delay:0.1s"><div class="stat-val" style="color:var(--accent3)">${data.total_telechargements}</div><div class="stat-lbl">Téléchargements</div></div>
+                <div class="stat-card" style="animation-delay:0.15s"><div class="stat-val" style="color:var(--gold)">${data.total_size}</div><div class="stat-lbl">Taille totale</div></div>
+            </div>
+            <div class="section-hdr"><div class="section-title">Popularité des jeux</div></div>
+            <div class="admin-games-list">
+                ${data.jeux_stats.length === 0
+                    ? `<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">PAS DE DONNÉES</div></div>`
+                    : data.jeux_stats.sort((a,b) => b.telechargements - a.telechargements).map(j => {
+                        const jeu = allJeux.find(x => x.titre === j.titre);
+                        return `<div class="admin-game-row">
+                            <div class="agr-emoji">${jeu?.emoji||'🎮'}</div>
+                            <div class="agr-info">
+                                <div class="agr-title">${j.titre}</div>
+                                <div class="agr-sub" style="margin-top:4px">
+                                    <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;width:200px">
+                                        <div style="height:100%;width:${Math.min(100, j.telechargements * 20)}%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:2px"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="agr-dl" style="font-size:14px;font-family:'Rajdhani',sans-serif;font-weight:700">⬇ ${j.telechargements}</div>
+                        </div>`;
+                    }).join('')
+                }
+            </div>
+        `;
+    } catch(e) {
+        content.innerHTML = `<div class="empty-state"><div class="empty-icon">⚡</div><div class="empty-title">ERREUR</div></div>`;
+    }
+}
+
+async function renderLibrary() {
+    const content = document.getElementById('content');
+    if (!session) {
+        content.innerHTML = `<div class="empty-state"><div class="empty-icon">🔐</div><div class="empty-title">CONNECTE-TOI POUR JOUER</div><div class="empty-sub">La bibliothèque locale permet d’installer et de lancer des jeux sur cet ordinateur.</div><a class="btn-primary" href="accounts.html" style="display:inline-block;margin-top:18px;text-decoration:none">Se connecter</a></div>`;
+        return;
+    }
+    content.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">Chargement de la bibliothèque…</div>`;
+    try {
+        const result = await apiGet('/api/library');
+        if (!result.success) throw new Error(result.error || 'Bibliothèque indisponible');
+        const games = result.games || [];
+        installedGames = new Set(games.map(game => String(game.id))); updateSidebar();
+        content.innerHTML = `<div class="library-toolbar"><div><div class="section-title">Ma bibliothèque</div><div style="font-size:11px;color:var(--muted);margin-top:6px">Installée sur cet ordinateur · espace libre limité uniquement par le disque disponible.</div></div><span class="section-count">${games.length} jeu${games.length>1?'x':''}</span></div>
+            ${games.length ? `<div class="library-list">${games.map(game => `<div class="library-game-card">${game.image?`<img class="library-cover" src="/media/covers/${encodeURIComponent(game.image)}" alt="">`:`<div class="library-game-art">${escapeHtml(game.emoji||'🎮')}</div>`}<div class="library-game-info"><div class="library-game-title">${escapeHtml(game.titre)}</div><div class="library-game-meta">${escapeHtml(game.taille||'Taille inconnue')} · ${escapeHtml(game.fichier||'')}</div></div><button class="btn-play" onclick="launchGame('${String(game.id).replace(/[^a-zA-Z0-9_-]/g,'')}')">▶ Jouer</button></div>`).join('')}</div>` : `<div class="empty-state"><div class="empty-icon">🗂️</div><div class="empty-title">TA BIBLIOTHÈQUE EST VIDE</div><div class="empty-sub">Installe un jeu depuis la boutique pour le retrouver ici.</div><button class="btn-primary" style="margin-top:18px" onclick="setTab('all',document.querySelectorAll('.nav-item')[1])">Parcourir la boutique</button></div>`}`;
+    } catch(error) {
+        content.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">BIBLIOTHÈQUE INDISPONIBLE</div><div class="empty-sub">${escapeHtml(error.message||'Erreur locale')}</div></div>`;
+    }
+}
+
+function formatBytes(value) {
+    if (!value) return '0 o';
+    const units = ['o', 'Ko', 'Mo', 'Go', 'To'];
+    let size = value, index = 0;
+    while (size >= 1024 && index < units.length - 1) { size /= 1024; index += 1; }
+    return `${size >= 10 || index === 0 ? Math.round(size) : size.toFixed(1)} ${units[index]}`;
+}
+
+async function launchLibraryItem(name) {
+    try {
+        const error = await window.gameVaultDesktop.launchLibraryItem(name);
+        if (error) alert(error);
+    } catch (error) { alert(error.message || 'Impossible d’ouvrir ce fichier.'); }
+}
+
+// ── CLOUD & OPTIMISATION
+async function renderCloud() {
+    const content = document.getElementById('content');
+    content.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)"><div style="animation:spin 1s linear infinite;display:inline-block;font-size:24px">⟳</div></div>`;
+    let data = {cloud:{enabled:false,url:'',username:'',remote_path:'GameVault',last_sync:null,configured:false},manifest:0};
+    try { const response = await apiGet('/api/cloud/status'); if (response.success) data = response; } catch (e) {}
+    const cloud = data.cloud || {};
+    const online = cloud.enabled && cloud.configured;
+    content.innerHTML = `
+        <div class="cloud-grid">
+            <section class="cloud-panel">
+                <div class="cloud-title">☁️ Synchronisation cloud</div>
+                <div class="cloud-sub">Sauvegardez votre catalogue, vos statistiques et vos jeux sur n’importe quel serveur WebDAV (Nextcloud, ownCloud, NAS…). Les fichiers sont synchronisés de façon atomique.</div>
+                <div class="cloud-status"><span class="cloud-dot ${online?'online':'offline'}"></span><span>${online ? 'Cloud configuré' : 'Cloud non configuré'}</span><span style="margin-left:auto;color:var(--muted)">${data.manifest||0} fichiers locaux</span></div>
+                <div class="upload-grid">
+                    <div class="field-group"><div class="field-label">URL WebDAV</div><input class="field-input" id="cloud-url" value="${escapeHtml(cloud.url||'')}" placeholder="https://cloud.exemple.com/remote.php/dav/files/moi"></div>
+                    <div class="field-group"><div class="field-label">Dossier distant</div><input class="field-input" id="cloud-path" value="${escapeHtml(cloud.remote_path||'GameVault')}" placeholder="GameVault"></div>
+                    <div class="field-group"><div class="field-label">Identifiant</div><input class="field-input" id="cloud-user" value="${escapeHtml(cloud.username||'')}" placeholder="Utilisateur WebDAV"></div>
+                    <div class="field-group"><div class="field-label">Mot de passe / token</div><input class="field-input" id="cloud-password" type="password" placeholder="Laisser vide pour conserver"></div>
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text);cursor:pointer"><input id="cloud-enabled" type="checkbox" ${cloud.enabled?'checked':''}> Activer le cloud pour ce profil</label>
+                <div class="cloud-actions">
+                    <button class="btn-primary" onclick="saveCloud()">💾 Enregistrer</button>
+                    <button class="btn-ghost" onclick="syncCloud('two-way')">↕ Synchroniser</button>
+                    <button class="btn-ghost" onclick="syncCloud('push')">⬆ Sauvegarder</button>
+                    <button class="btn-ghost" onclick="syncCloud('pull')">⬇ Restaurer</button>
+                </div>
+                <div class="alert alert-success" id="cloud-ok" style="margin-top:14px"></div><div class="alert alert-error" id="cloud-err" style="margin-top:14px"></div>
+                <div style="font-size:10px;color:var(--muted);margin-top:12px">Dernière synchro : ${cloud.last_sync ? new Date(cloud.last_sync).toLocaleString() : 'jamais'}</div>
+            </section>
+            <section class="cloud-panel">
+                <div class="cloud-title">⚡ Optimisation</div>
+                <div class="cloud-sub">Une maintenance légère et sûre pour garder l’application rapide sur Windows 11.</div>
+                <div class="optimization-list">
+                    <div class="optimization-item"><div class="optimization-icon">🚀</div><div class="optimization-copy"><strong>Serveur multithread</strong>Les téléchargements et l’interface restent réactifs simultanément.</div></div>
+                    <div class="optimization-item"><div class="optimization-icon">🧹</div><div class="optimization-copy"><strong>Nettoyage des téléchargements interrompus</strong>Supprime uniquement les fichiers temporaires .part.</div></div>
+                    <div class="optimization-item"><div class="optimization-icon">🔐</div><div class="optimization-copy"><strong>Comptes protégés</strong>Les nouveaux mots de passe utilisent PBKDF2-SHA256 avec migration transparente.</div></div>
+                </div>
+                <button class="btn-primary" style="width:100%;margin-top:18px" onclick="runOptimization()">🛠 Optimiser maintenant</button>
+                <div id="optimization-result" style="font-size:10px;color:var(--muted);margin-top:10px"></div>
+            </section>
+        </div>`;
+}
+
+async function saveCloud() {
+    const result = await apiPost('/api/cloud/configure', {
+        enabled: document.getElementById('cloud-enabled').checked,
+        url: document.getElementById('cloud-url').value.trim(),
+        remote_path: document.getElementById('cloud-path').value.trim(),
+        username: document.getElementById('cloud-user').value.trim(),
+        password: document.getElementById('cloud-password').value
+    });
+    const el = document.getElementById(result.success ? 'cloud-ok' : 'cloud-err');
+    if (el) showAlert(el, result.success ? '✅ Configuration enregistrée.' : '✗ ' + result.error);
+}
+
+async function syncCloud(direction) {
+    const elOk = document.getElementById('cloud-ok'), elErr = document.getElementById('cloud-err');
+    try {
+        const result = await apiPost('/api/cloud/sync', {direction});
+        if (result.success) showAlert(elOk, `✅ ${direction} terminé · ${result.uploaded.length} envoyés · ${result.downloaded.length} reçus${result.backup ? ' · sauvegarde locale créée' : ''}`);
+        else showAlert(elErr, '✗ ' + result.error);
+    } catch (e) { if (elErr) showAlert(elErr, '✗ Cloud indisponible.'); }
+}
+
+async function runOptimization() {
+    const target = document.getElementById('optimization-result');
+    if (!target) return;
+    target.textContent = 'Maintenance en cours…';
+    try { const result = await apiPost('/api/optimization', {}); target.textContent = `✅ ${result.removed_partials} fichier(s) temporaire(s) supprimé(s).`; }
+    catch (e) { target.textContent = '✗ Optimisation indisponible.'; }
+}
+
+// ── ADMIN
+function renderAdmin() {
+    const emojis = ['🎮','🕹️','👾','🚀','⚔️','🏆','🎯','🔫','🧙','🏎️','⚽','🎲','🧩','🌆','🔥'];
+    document.getElementById('content').innerHTML = `
+        <div class="admin-panel">
+            <div class="admin-title">Publier un nouveau jeu</div>
+            <div class="alert alert-error" id="up-err"></div>
+            <div class="alert alert-success" id="up-ok"></div>
+            <div class="upload-grid">
+                <div class="field-group"><div class="field-label">Titre *</div><input class="field-input" id="up-titre" placeholder="Mon Super Jeu"></div>
+                <div class="field-group"><div class="field-label">Genre *</div><input class="field-input" id="up-genre" placeholder="Action, RPG, Sport..."></div>
+            </div>
+            <div class="field-group" style="margin-bottom:14px"><div class="field-label">Description</div><textarea class="field-input" id="up-desc" placeholder="Décrivez votre jeu..."></textarea></div>
+            <div class="field-group" style="margin-bottom:14px"><div class="field-label">Icône</div><div class="emoji-row">${emojis.map(e => `<button class="emoji-btn ${e===selectedEmoji?'selected':''}" onclick="selectEmoji('${e}',this)">${e}</button>`).join('')}</div></div>
+            <div class="field-group" style="margin-bottom:14px">
+                <div class="field-label">Jaquette du jeu (facultatif · PNG, JPG, WEBP, GIF · 15 Mo max)</div>
+                <input class="field-input" type="file" id="up-cover" accept="image/png,image/jpeg,image/webp,image/gif" onchange="onCoverSelect(this)" style="padding:8px">
+                <img class="cover-preview" id="cover-preview" alt="Aperçu de la jaquette">
+                <div class="admin-upload-hint">Pas de limite de taille imposée aux fichiers de jeu par GameVault : la capacité disponible dépend de ton disque.</div>
+            </div>
+            <div class="field-group" style="margin-bottom:16px">
+                <div class="field-label">Fichier du jeu * (ZIP, EXE, etc.)</div>
+                <div class="dropzone" id="dropzone">
+                    <input type="file" id="up-file" onchange="onFileSelect(this)">
+                    <div class="dropzone-icon">📂</div>
+                    <div class="dropzone-text">Glissez votre fichier ou <strong>cliquez pour parcourir</strong></div>
+                    <div class="dropzone-file" id="dropzone-fname"></div>
+                </div>
+            </div>
+            <div class="up-progress" id="up-progress"><div class="up-bar"><div class="up-fill" id="up-fill"></div></div><div class="up-label" id="up-label">Upload...</div></div>
+            <button class="btn-upload" id="btn-upload" onclick="uploadJeu()">⬆ Publier le jeu</button>
+        </div>
+        <div class="section-hdr">
+            <div class="section-title">Jeux publiés</div>
+            <div class="section-count">${allJeux.length} jeu${allJeux.length>1?'x':''}</div>
+        </div>
+        <div class="admin-games-list">
+            ${allJeux.length === 0
+                ? `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">AUCUN JEU</div></div>`
+                : allJeux.map(j => `<div class="admin-game-row">
+                    <div class="agr-emoji">${j.emoji}</div>
+                    <div class="agr-info"><div class="agr-title">${j.titre}</div><div class="agr-sub">${j.genre} · ${j.fichier} · ${j.date}</div></div>
+                    <div class="agr-size">${j.taille}</div>
+                    <div class="agr-dl">⬇ ${j.telechargements||0}</div>
+                    <button class="btn-del-jeu" onclick="supprimerJeu('${j.id}')">🗑</button>
+                </div>`).join('')
+            }
+        </div>
+    `;
+
+    const dz = document.getElementById('dropzone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+    dz.addEventListener('drop', e => {
+        e.preventDefault(); dz.classList.remove('drag');
+        if (e.dataTransfer.files.length) {
+            selectedFile = e.dataTransfer.files[0];
+            document.getElementById('dropzone-fname').textContent = '✅ ' + selectedFile.name;
+        }
+    });
+}
+
+function selectEmoji(e, btn) {
+    selectedEmoji = e;
+    document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+}
+function onFileSelect(input) {
+    if (input.files.length) { selectedFile = input.files[0]; document.getElementById('dropzone-fname').textContent = '✅ ' + selectedFile.name; }
+}
+function onCoverSelect(input) {
+    if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+    selectedCover = input.files?.[0] || null;
+    const preview = document.getElementById('cover-preview');
+    if (!selectedCover) { preview.style.display = 'none'; return; }
+    coverPreviewUrl = URL.createObjectURL(selectedCover);
+    preview.src = coverPreviewUrl; preview.style.display = 'block';
+}
+
+async function uploadJeu() {
+    const titre = document.getElementById('up-titre').value.trim();
+    const genre = document.getElementById('up-genre').value.trim();
+    const desc  = document.getElementById('up-desc').value.trim();
+    const err   = document.getElementById('up-err');
+    const ok    = document.getElementById('up-ok');
+    const btn   = document.getElementById('btn-upload');
+    err.style.display = 'none'; ok.style.display = 'none';
+    if (!titre) { showAlert(err,'⚠ Titre requis.'); return; }
+    if (!genre) { showAlert(err,'⚠ Genre requis.'); return; }
+    if (!selectedFile) { showAlert(err,'⚠ Sélectionnez un fichier.'); return; }
+
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Upload...';
+    const progress = document.getElementById('up-progress');
+    const fill = document.getElementById('up-fill');
+    const label = document.getElementById('up-label');
+    progress.classList.add('show');
+
+    let p = 0;
+    const iv = setInterval(() => { p = Math.min(p + Math.random()*12 + 3, 90); fill.style.width = p+'%'; label.textContent = `Upload... ${Math.round(p)}%`; }, 150);
+
+    try {
+        const fd = new FormData();
+        fd.append('fichier', selectedFile);
+        fd.append('titre', titre); fd.append('genre', genre);
+        fd.append('description', desc || 'Pas de description.');
+        fd.append('emoji', selectedEmoji);
+        if (selectedCover) fd.append('image', selectedCover);
+
+        const res  = await fetch('/api/upload-jeu', { method:'POST', body:fd });
+        const data = await res.json();
+        clearInterval(iv); fill.style.width = '100%'; label.textContent = 'Upload terminé !';
+
+        if (data.success) {
+            allJeux.push(data.jeu); updateSidebar(); buildGenreFilters();
+            showAlert(ok, `✅ "${titre}" publié ! (${data.jeu.taille})`);
+            selectedFile = null; selectedCover = null;
+            setTimeout(() => renderAdmin(), 1500);
+        } else { showAlert(err, '✗ ' + data.error); }
+    } catch(e) { clearInterval(iv); showAlert(err, '✗ Erreur serveur.'); }
+    btn.disabled = false; btn.innerHTML = '⬆ Publier le jeu';
+}
+
+async function supprimerJeu(id) {
+    const jeu = allJeux.find(j => j.id === id);
+    if (!confirm(`Supprimer "${jeu?.titre}" ?`)) return;
+    await apiPost('/api/delete-jeu', { id });
+    allJeux = allJeux.filter(j => j.id !== id);
+    updateSidebar(); buildGenreFilters(); renderAdmin();
+}
+
+function showAlert(el, msg) { el.textContent = msg; el.style.display = 'block'; setTimeout(() => el.style.display='none', 4000); }
+
+loadCatalogue();
+</script>
+</body>
+</html>

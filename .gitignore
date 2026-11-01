@@ -1,0 +1,17 @@
+node_modules/
+.pnpm-store/
+dist-app/
+dist-server/
+build-server/
+resources/server/*.exe
+__pycache__/
+*.pyc
+.DS_Store
+# Local GameVault data may contain plaintext legacy account passwords,
+# uploaded games, covers, usage statistics, and WebDAV credentials.
+repertoire/
+games/
+data/
+cloud.json
+*.part
+*.tmp

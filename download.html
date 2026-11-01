@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr" data-repository="OWNER/REPOSITORY">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Télécharger GameVault pour Windows 11">
+  <title>GameVault — Télécharger</title>
+  <style>
+    :root{color-scheme:dark;--bg:#060b13;--panel:#0c1624;--line:#1d3048;--text:#d9e7f6;--muted:#7790aa;--accent:#18b6ff;--green:#32e6aa}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);background:radial-gradient(circle at 15% 0,#12375a 0,transparent 38%),var(--bg)}
+    main{width:min(960px,calc(100% - 32px));margin:0 auto;padding:72px 0 56px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:56px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.gem{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,var(--accent),#2463e8);box-shadow:0 0 30px #18b6ff55;font-size:22px}.brand span{color:var(--accent)}
+    .hero{max-width:720px}.eyebrow{color:var(--green);font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}.hero h1{font-size:clamp(38px,7vw,72px);line-height:1.02;margin:14px 0 18px;letter-spacing:-.05em}.hero h1 span{color:var(--accent)}.hero p{color:var(--muted);font-size:18px;max-width:630px}
+    .release{margin-top:38px;padding:24px;border:1px solid var(--line);border-radius:18px;background:#0c1624dd;box-shadow:0 20px 80px #0008;backdrop-filter:blur(10px)}.release-head{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.release h2{font-size:21px;margin:0}.version{color:var(--green);font-size:13px;font-weight:700}.assets{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:22px}.asset{display:flex;align-items:center;gap:12px;padding:15px;border:1px solid var(--line);border-radius:12px;background:#09111d;color:var(--text);text-decoration:none;transition:.2s}.asset:hover{border-color:var(--accent);transform:translateY(-2px);background:#0d1d30}.asset-icon{font-size:23px}.asset strong{display:block}.asset small{display:block;color:var(--muted);margin-top:2px}.state{padding:16px;border-radius:10px;color:var(--muted);background:#09111d}.error{color:#ff8396}
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:34px}.feature{padding:18px;border:1px solid var(--line);border-radius:13px;background:#0a1320aa}.feature b{display:block;margin-bottom:5px}.feature span{color:var(--muted);font-size:13px}@media(max-width:680px){main{padding-top:38px}.brand{margin-bottom:40px}.features{grid-template-columns:1fr}.hero p{font-size:16px}}
+    footer{margin-top:40px;color:var(--muted);font-size:12px}footer a{color:var(--accent)}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand"><div class="gem">◈</div><div>Game<span>Vault</span></div></div>
+  <section class="hero">
+    <div class="eyebrow">Bibliothèque de jeux · Windows 11</div>
+    <h1>Votre bibliothèque.<br><span>Partout.</span></h1>
+    <p>Installez GameVault en un clic, téléchargez vos jeux directement sur disque et synchronisez votre catalogue avec votre cloud WebDAV.</p>
+  </section>
+  <section class="release" aria-live="polite">
+    <div class="release-head"><h2>Dernière version</h2><span class="version" id="version">Recherche…</span></div>
+    <div id="assets" class="assets"><div class="state">Connexion au serveur de versions…</div></div>
+  </section>
+  <section class="features">
+    <div class="feature"><b>⚡ Installation native</b><span>Installateur Windows et version portable disponibles.</span></div>
+    <div class="feature"><b>☁️ Cloud WebDAV</b><span>Nextcloud, ownCloud, NAS et autres serveurs compatibles.</span></div>
+    <div class="feature"><b>🔒 Local et privé</b><span>Vos données restent sur votre PC, avec synchronisation à la demande.</span></div>
+  </section>
+  <footer>Les téléchargements sont publiés automatiquement depuis les releases du projet. <a id="releases" href="#">Voir toutes les versions</a></footer>
+</main>
+<script>
+  const configuredRepo = document.documentElement.dataset.repository || 'OWNER/REPOSITORY';
+  const repo = new URLSearchParams(location.search).get('repo') || configuredRepo;
+  const version = document.getElementById('version');
+  const assets = document.getElementById('assets');
+  const releases = document.getElementById('releases');
+  const api = `https://api.github.com/repos/${repo}/releases/latest`;
+  releases.href = `https://github.com/${repo}/releases`;
+  function bytes(value){if(!value)return '';let n=value,u=['o','Ko','Mo','Go'],i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return `${n.toFixed(i?1:0)} ${u[i]}`}
+  function render(release){
+    version.textContent = `${release.tag_name || 'Version récente'} · ${new Date(release.published_at || release.created_at).toLocaleDateString('fr-FR')}`;
+    const files=(release.assets||[]).filter(a=>/\.(exe|msi|zip)$/i.test(a.name));
+    if(!files.length){assets.innerHTML='<div class="state">Aucun installateur publié pour le moment. Lancez une release Windows depuis le dépôt.</div>';return}
+    assets.innerHTML=files.map(file=>`<a class="asset" href="${file.browser_download_url}"><div class="asset-icon">${/portable/i.test(file.name)?'🧳':'⬇️'}</div><div><strong>${file.name}</strong><small>${bytes(file.size)} · téléchargement direct</small></div></a>`).join('');
+  }
+  fetch(api,{headers:{Accept:'application/vnd.github+json'}}).then(r=>{if(!r.ok)throw new Error('release');return r.json()}).then(render).catch(()=>{version.textContent='Version en ligne';assets.innerHTML=`<div class="state error">Le dépôt n’est pas encore configuré. Remplacez <code>OWNER/REPOSITORY</code> dans download.html ou ouvrez <a href="https://github.com/${repo}/releases">les releases GitHub</a>.</div>`});
+</script>
+</body>
+</html>

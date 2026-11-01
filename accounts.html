@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameVault — Comptes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #060c14; --panel: #0b1525; --card: #0d1929;
+            --border: #162030; --border2: #1e3050;
+            --accent: #00aaff; --accent2: #0066cc; --accent3: #00ffaa;
+            --text: #c8d8e8; --muted: #4a6080; --white: #e8f0f8;
+            --red: #ff4060; --gold: #ffaa00;
+        }
+        body { font-family: 'Exo 2', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        body::before {
+            content: ''; position: fixed; inset: 0; pointer-events: none;
+            background-image: linear-gradient(rgba(0,170,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,170,255,0.025) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* AUTH */
+        .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .auth-container { width: 100%; max-width: 420px; animation: fadeUp 0.6s ease both; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+        .auth-logo { text-align: center; margin-bottom: 28px; }
+        .logo-gem { width:52px; height:52px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 12px; box-shadow:0 0 28px rgba(0,170,255,0.4); }
+        .auth-logo h1 { font-family:'Rajdhani',sans-serif; font-size:26px; font-weight:700; letter-spacing:3px; color:var(--white); }
+        .auth-logo h1 span { color:var(--accent); }
+        .auth-logo p { font-size:10px; letter-spacing:3px; color:var(--muted); margin-top:3px; text-transform:uppercase; }
+
+        .auth-card { background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:32px 28px; position:relative; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+        .auth-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--accent),transparent); opacity:0.5; }
+        .auth-card-title { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--white); text-align:center; margin-bottom:24px; }
+
+        .form-group { margin-bottom:16px; }
+        label { display:block; font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:7px; }
+        .input-wrap { position:relative; }
+        input[type="text"], input[type="email"], input[type="password"] {
+            width:100%; padding:11px 14px 11px 40px;
+            background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:8px;
+            color:var(--white); font-family:'Exo 2',sans-serif; font-size:13px; outline:none;
+            transition:border-color 0.3s, box-shadow 0.3s;
+        }
+        input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,170,255,0.1); }
+        input::placeholder { color:var(--muted); }
+        .input-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:13px; pointer-events:none; }
+        .toggle-pw { position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; padding:0; transition:color 0.2s; }
+        .toggle-pw:hover { color:var(--accent); }
+
+        .strength-wrap { margin-top:6px; }
+        .strength-bar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+        .strength-fill { height:100%; width:0%; border-radius:2px; transition:width 0.3s, background 0.3s; }
+        .strength-label { font-size:9px; color:var(--muted); margin-top:3px; letter-spacing:1px; }
+
+        .alert { padding:10px 14px; border-radius:6px; font-size:12px; margin-bottom:14px; display:none; }
+        .alert-error { background:rgba(255,64,96,0.08); border:1px solid rgba(255,64,96,0.2); color:var(--red); }
+        .alert-success { background:rgba(0,255,170,0.08); border:1px solid rgba(0,255,170,0.2); color:var(--accent3); }
+
+        .btn-main { width:100%; padding:13px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:8px; color:white; font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; letter-spacing:3px; text-transform:uppercase; cursor:pointer; transition:transform 0.2s, box-shadow 0.3s; box-shadow:0 4px 20px rgba(0,170,255,0.3); margin-top:8px; }
+        .btn-main:hover { transform:translateY(-1px); box-shadow:0 6px 28px rgba(0,170,255,0.5); }
+        .btn-main:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+
+        .auth-switch { text-align:center; font-size:12px; color:var(--muted); margin-top:20px; }
+        .auth-switch a { color:var(--accent); cursor:pointer; font-weight:600; }
+
+        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+        /* DASHBOARD */
+        .dash-header { background:var(--panel); border-bottom:1px solid var(--border); padding:0 32px; display:flex; align-items:center; height:58px; gap:20px; position:sticky; top:0; z-index:50; }
+        .dash-logo { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; letter-spacing:2px; color:var(--white); }
+        .dash-logo span { color:var(--accent); }
+        .dash-nav { display:flex; gap:4px; margin-left:24px; }
+        .dash-tab { padding:6px 16px; border-radius:6px; font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; cursor:pointer; background:transparent; border:1px solid transparent; color:var(--muted); font-family:'Exo 2',sans-serif; transition:all 0.2s; }
+        .dash-tab:hover { color:var(--text); border-color:var(--border2); }
+        .dash-tab.active { background:rgba(0,170,255,0.1); border-color:rgba(0,170,255,0.3); color:var(--accent); }
+        .dash-actions { margin-left:auto; display:flex; align-items:center; gap:12px; }
+        .user-pill { display:flex; align-items:center; gap:8px; padding:6px 12px; background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:20px; font-size:12px; color:var(--text); }
+        .btn-logout { padding:7px 14px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--muted); font-size:11px; font-family:'Exo 2',sans-serif; cursor:pointer; transition:all 0.2s; letter-spacing:1px; }
+        .btn-logout:hover { border-color:var(--red); color:var(--red); }
+        .btn-store { padding:7px 16px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:6px; color:white; font-size:11px; font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:2px; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 10px rgba(0,170,255,0.3); }
+        .btn-store:hover { transform:translateY(-1px); }
+
+        .dash-content { padding:28px 32px; }
+
+        /* PROFIL */
+        .profile-grid { display:grid; grid-template-columns:280px 1fr; gap:20px; }
+        .profile-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px 22px; text-align:center; position:relative; overflow:hidden; }
+        .profile-card::before { content:''; position:absolute; top:0; left:0; right:0; height:60px; background:linear-gradient(135deg,rgba(0,100,200,0.3),rgba(0,50,100,0.2)); }
+        .profile-avatar { width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:flex; align-items:center; justify-content:center; font-size:32px; margin:16px auto 14px; border:3px solid var(--panel); box-shadow:0 0 20px rgba(0,170,255,0.3); position:relative; z-index:1; }
+        .profile-name { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:var(--white); letter-spacing:1px; }
+        .profile-email { font-size:11px; color:var(--muted); margin-top:3px; }
+        .profile-badge { display:inline-block; margin-top:10px; padding:3px 10px; background:rgba(0,255,170,0.1); border:1px solid rgba(0,255,170,0.2); border-radius:20px; font-size:9px; font-weight:700; letter-spacing:2px; color:var(--accent3); }
+        .profile-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:20px; }
+        .stat-box { background:rgba(0,0,0,0.2); border:1px solid var(--border); border-radius:8px; padding:10px; }
+        .stat-val { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:var(--accent); }
+        .stat-lbl { font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+
+        .edit-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:16px; }
+        .edit-title { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--white); margin-bottom:20px; display:flex; align-items:center; gap:8px; }
+        .edit-title::before { content:''; width:3px; height:14px; background:var(--accent); border-radius:2px; }
+        .btn-save { padding:10px 24px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:7px; color:white; font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700; letter-spacing:2px; cursor:pointer; transition:all 0.2s; box-shadow:0 3px 12px rgba(0,170,255,0.3); }
+        .btn-save:hover { transform:translateY(-1px); }
+
+        /* ADMIN */
+        .admin-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+        .admin-stat { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 20px; animation:fadeUp 0.5s ease both; }
+        .admin-stat-val { font-family:'Rajdhani',sans-serif; font-size:28px; font-weight:700; color:var(--accent); }
+        .admin-stat-lbl { font-size:10px; color:var(--muted); letter-spacing:1px; margin-top:2px; }
+
+        .accounts-table { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+        .table-header { display:flex; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border); gap:12px; }
+        .table-title { font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--white); }
+        .table-search { margin-left:auto; padding:6px 12px; background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:11px; font-family:'Exo 2',sans-serif; outline:none; width:200px; }
+        .table-search:focus { border-color:var(--accent); }
+        table { width:100%; border-collapse:collapse; }
+        th { padding:10px 20px; text-align:left; font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); background:rgba(0,0,0,0.1); border-bottom:1px solid var(--border); }
+        td { padding:13px 20px; font-size:12px; color:var(--text); border-bottom:1px solid rgba(22,32,48,0.5); }
+        tr:last-child td { border-bottom:none; }
+        tr:hover td { background:rgba(0,170,255,0.02); }
+        .td-name { font-weight:600; color:var(--white); }
+        .td-role { padding:2px 8px; border-radius:4px; font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+        .role-admin { background:rgba(255,170,0,0.1); color:var(--gold); border:1px solid rgba(255,170,0,0.2); }
+        .role-user { background:rgba(0,170,255,0.1); color:var(--accent); border:1px solid rgba(0,170,255,0.2); }
+        .btn-del { padding:4px 10px; background:transparent; border:1px solid rgba(255,64,96,0.2); border-radius:4px; color:var(--red); font-size:10px; cursor:pointer; transition:all 0.2s; }
+        .btn-del:hover { background:rgba(255,64,96,0.1); }
+
+        .file-info { background:rgba(0,255,170,0.05); border:1px solid rgba(0,255,170,0.15); border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:11px; color:var(--accent3); display:flex; align-items:center; gap:8px; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="view active" id="view-login">
+    <div class="auth-wrap">
+        <div class="auth-container">
+            <div class="auth-logo">
+                <div class="logo-gem">◈</div>
+                <h1>Game<span>Vault</span></h1>
+                <p>Connexion au compte</p>
+            </div>
+            <div class="auth-card">
+                <div class="auth-card-title">Connexion</div>
+                <div class="alert alert-error" id="login-err"></div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <div class="input-wrap">
+                        <span class="input-icon">✉️</span>
+                        <input type="email" id="login-email" placeholder="votre@email.com">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <div class="input-wrap">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="login-pw" placeholder="••••••••">
+                        <button class="toggle-pw" onclick="togglePw('login-pw')">👁</button>
+                    </div>
+                </div>
+                <button class="btn-main" id="btn-login" onclick="doLogin()">Se connecter</button>
+                <div class="auth-switch">Pas de compte ? <a onclick="showView('view-register')">Créer un compte</a><br><a onclick="window.location='store.html'" style="display:inline-block;margin-top:12px">Découvrir la boutique sans compte →</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- REGISTER -->
+<div class="view" id="view-register">
+    <div class="auth-wrap">
+        <div class="auth-container">
+            <div class="auth-logo">
+                <div class="logo-gem">◈</div>
+                <h1>Game<span>Vault</span></h1>
+                <p>Créer un compte</p>
+            </div>
+            <div class="auth-card">
+                <div class="auth-card-title">Inscription</div>
+                <div class="alert alert-error" id="reg-err"></div>
+                <div class="alert alert-success" id="reg-ok"></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Pseudo</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">🎮</span>
+                            <input type="text" id="reg-name" placeholder="GamerTag">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">✉️</span>
+                            <input type="email" id="reg-email" placeholder="email@exemple.com">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <div class="input-wrap">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="reg-pw" placeholder="Minimum 6 caractères" oninput="checkStrength(this.value)">
+                        <button class="toggle-pw" onclick="togglePw('reg-pw')">👁</button>
+                    </div>
+                    <div class="strength-wrap">
+                        <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
+                        <div class="strength-label" id="strength-label">Entrez un mot de passe</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Confirmer</label>
+                    <div class="input-wrap">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="reg-pw2" placeholder="Répétez le mot de passe">
+                    </div>
+                </div>
+                <button class="btn-main" id="btn-register" onclick="doRegister()">Créer mon compte</button>
+                <div class="auth-switch">Déjà un compte ? <a onclick="showView('view-login')">Se connecter</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="view" id="view-dashboard">
+    <header class="dash-header">
+        <div class="dash-logo">Game<span>Vault</span></div>
+        <div class="dash-nav">
+            <button class="dash-tab active" onclick="switchTab('tab-profile', this)">Mon Profil</button>
+            <button class="dash-tab" id="admin-tab-btn" onclick="switchTab('tab-admin', this)" style="display:none">Administration</button>
+        </div>
+        <div class="dash-actions">
+            <div class="user-pill">🎮 <span id="dash-username">Joueur</span></div>
+            <button class="btn-store" onclick="window.location='store.html'">🎮 Boutique</button>
+            <button class="btn-logout" onclick="doLogout()">Déconnexion</button>
+        </div>
+    </header>
+
+    <div class="dash-content">
+
+        <!-- PROFIL -->
+        <div id="tab-profile">
+            <div class="profile-grid">
+                <div class="profile-card">
+                    <div class="profile-avatar">🎮</div>
+                    <div class="profile-name" id="prof-name">—</div>
+                    <div class="profile-email" id="prof-email">—</div>
+                    <div class="profile-badge" id="prof-role">JOUEUR</div>
+                    <div class="profile-stats">
+                        <div class="stat-box"><div class="stat-val" id="prof-games">0</div><div class="stat-lbl">Jeux</div></div>
+                        <div class="stat-box"><div class="stat-val" id="prof-since">—</div><div class="stat-lbl">Membre depuis</div></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="edit-card">
+                        <div class="edit-title">Modifier le profil</div>
+                        <div class="alert alert-success" id="edit-ok"></div>
+                        <div class="alert alert-error" id="edit-err"></div>
+                        <div class="form-row" style="margin-bottom:14px">
+                            <div class="form-group" style="margin:0">
+                                <label>Pseudo</label>
+                                <div class="input-wrap"><span class="input-icon">🎮</span><input type="text" id="edit-name"></div>
+                            </div>
+                            <div class="form-group" style="margin:0">
+                                <label>Email</label>
+                                <div class="input-wrap"><span class="input-icon">✉️</span><input type="email" id="edit-email"></div>
+                            </div>
+                        </div>
+                        <button class="btn-save" onclick="saveProfile()">💾 Enregistrer</button>
+                    </div>
+                    <div class="edit-card">
+                        <div class="edit-title">Changer le mot de passe</div>
+                        <div class="alert alert-error" id="pw-err"></div>
+                        <div class="alert alert-success" id="pw-ok"></div>
+                        <div class="form-group">
+                            <label>Mot de passe actuel</label>
+                            <div class="input-wrap"><span class="input-icon">🔒</span><input type="password" id="pw-old" placeholder="••••••••"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="margin:0">
+                                <label>Nouveau</label>
+                                <div class="input-wrap"><span class="input-icon">🔑</span><input type="password" id="pw-new" placeholder="Nouveau"></div>
+                            </div>
+                            <div class="form-group" style="margin:0">
+                                <label>Confirmer</label>
+                                <div class="input-wrap"><span class="input-icon">🔑</span><input type="password" id="pw-new2" placeholder="Confirmer"></div>
+                            </div>
+                        </div>
+                        <button class="btn-save" style="margin-top:14px" onclick="changePassword()">🔐 Changer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN -->
+        <div id="tab-admin" style="display:none">
+            <div class="file-info">
+                📁 Comptes enregistrés dans : <strong id="file-path">GameVault/repertoire/comptes.txt</strong>
+            </div>
+            <div class="admin-stats">
+                <div class="admin-stat"><div class="admin-stat-val" id="stat-total">0</div><div class="admin-stat-lbl">Comptes total</div></div>
+                <div class="admin-stat" style="animation-delay:0.1s"><div class="admin-stat-val" id="stat-admins" style="color:var(--gold)">0</div><div class="admin-stat-lbl">Admins</div></div>
+                <div class="admin-stat" style="animation-delay:0.15s"><div class="admin-stat-val" id="stat-users" style="color:var(--accent3)">0</div><div class="admin-stat-lbl">Joueurs</div></div>
+                <div class="admin-stat" style="animation-delay:0.2s"><div class="admin-stat-val" id="stat-today">0</div><div class="admin-stat-lbl">Aujourd'hui</div></div>
+            </div>
+            <div class="accounts-table">
+                <div class="table-header">
+                    <div class="table-title">Répertoire des comptes</div>
+                    <input class="table-search" placeholder="🔍 Rechercher..." oninput="filterTable(this.value)">
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pseudo</th><th>Email</th><th>Rôle</th><th>Date inscription</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accounts-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '';  // même serveur
+let session = JSON.parse(sessionStorage.getItem('gv_session') || 'null');
+let allComptes = [];
+if (session && !session.token) { session = null; sessionStorage.removeItem('gv_session'); }
+
+// ── Vues
+function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+function switchTab(tabId, btn) {
+    document.querySelectorAll('[id^="tab-"]').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabId).style.display = 'block';
+    btn.classList.add('active');
+    if (tabId === 'tab-admin') loadAdminTab();
+}
+
+// ── API calls
+async function apiPost(route, body) {
+    const token = session?.token;
+    const res = await fetch(API + route, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body)
+    });
+    return res.json();
+}
+
+async function apiGet(route) {
+    const token = session?.token;
+    const res = await fetch(API + route, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    return res.json();
+}
+
+// ── Login
+async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const pw    = document.getElementById('login-pw').value;
+    const err   = document.getElementById('login-err');
+    const btn   = document.getElementById('btn-login');
+
+    if (!email || !pw) { showAlert(err, '⚠ Remplissez tous les champs.'); return; }
+
+    btn.disabled = true; btn.textContent = 'Connexion...';
+    try {
+        const data = await apiPost('/api/login', { email, password: pw });
+        if (data.success) {
+            session = { ...data.user, token: data.token };
+            sessionStorage.setItem('gv_session', JSON.stringify(session));
+            loadDashboard(session);
+            showView('view-dashboard');
+        } else {
+            showAlert(err, '✗ ' + data.error);
+        }
+    } catch(e) {
+        showAlert(err, '✗ Serveur inaccessible. Lance serveur_local.py');
+    }
+    btn.disabled = false; btn.textContent = 'Se connecter';
+}
+
+// ── Register
+async function doRegister() {
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const pw   = document.getElementById('reg-pw').value;
+    const pw2  = document.getElementById('reg-pw2').value;
+    const err  = document.getElementById('reg-err');
+    const ok   = document.getElementById('reg-ok');
+    const btn  = document.getElementById('btn-register');
+
+    err.style.display = 'none'; ok.style.display = 'none';
+
+    if (!name || !email || !pw || !pw2) { showAlert(err, '⚠ Remplissez tous les champs.'); return; }
+    if (pw !== pw2) { showAlert(err, '✗ Les mots de passe ne correspondent pas.'); return; }
+    if (pw.length < 6) { showAlert(err, '⚠ Mot de passe trop court (6 min).'); return; }
+
+    btn.disabled = true; btn.textContent = 'Création...';
+    try {
+        const data = await apiPost('/api/register', { name, email, password: pw });
+        if (data.success) {
+            showAlert(ok, '✅ Compte créé ! Redirection...');
+            setTimeout(() => {
+                session = data.user;
+                session.token = data.token;
+                sessionStorage.setItem('gv_session', JSON.stringify(session));
+                loadDashboard(session);
+                showView('view-dashboard');
+            }, 1200);
+        } else {
+            showAlert(err, '✗ ' + data.error);
+        }
+    } catch(e) {
+        showAlert(err, '✗ Serveur inaccessible. Lance serveur_local.py');
+    }
+    btn.disabled = false; btn.textContent = 'Créer mon compte';
+}
+
+// ── Logout
+function doLogout() {
+    apiPost('/api/logout', {}).catch(() => {});
+    session = null;
+    sessionStorage.removeItem('gv_session');
+    showView('view-login');
+}
+
+// ── Dashboard
+function loadDashboard(user) {
+    document.getElementById('dash-username').textContent = user.name;
+    document.getElementById('prof-name').textContent  = user.name;
+    document.getElementById('prof-email').textContent = user.email;
+    document.getElementById('prof-role').textContent  = user.role === 'admin' ? '👑 ADMIN' : '🎮 JOUEUR';
+    document.getElementById('prof-games').textContent = user.games || 0;
+    document.getElementById('prof-since').textContent = (user.date || '').split(' ')[0] || '—';
+    document.getElementById('edit-name').value  = user.name;
+    document.getElementById('edit-email').value = user.email;
+
+    document.getElementById('admin-tab-btn').style.display = user.role === 'admin' ? 'block' : 'none';
+
+    document.querySelectorAll('[id^="tab-"]').forEach(t => t.style.display = 'none');
+    document.getElementById('tab-profile').style.display = 'block';
+    document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.dash-tab').classList.add('active');
+}
+
+// ── Modifier profil
+async function saveProfile() {
+    const name  = document.getElementById('edit-name').value.trim();
+    const email = document.getElementById('edit-email').value.trim();
+    if (!name || !email) { showAlert(document.getElementById('edit-err'), '⚠ Champs requis.'); return; }
+
+    const data = await apiPost('/api/update', { id: session.id, name, email });
+    if (data.success) {
+        session = { ...session, ...data.user };
+        sessionStorage.setItem('gv_session', JSON.stringify(session));
+        loadDashboard(session);
+        showAlert(document.getElementById('edit-ok'), '✅ Profil mis à jour et sauvegardé !');
+    } else {
+        showAlert(document.getElementById('edit-err'), '✗ ' + data.error);
+    }
+}
+
+// ── Changer mot de passe
+async function changePassword() {
+    const old  = document.getElementById('pw-old').value;
+    const nw   = document.getElementById('pw-new').value;
+    const nw2  = document.getElementById('pw-new2').value;
+    const err  = document.getElementById('pw-err');
+    const ok   = document.getElementById('pw-ok');
+
+    if (nw !== nw2) { showAlert(err, '✗ Les mots de passe ne correspondent pas.'); return; }
+    if (nw.length < 6) { showAlert(err, '⚠ Mot de passe trop court.'); return; }
+
+    // Vérifie l'ancien mot de passe via login
+    const check = await apiPost('/api/login', { email: session.email, password: old });
+    if (!check.success) { showAlert(err, '✗ Mot de passe actuel incorrect.'); return; }
+
+    const data = await apiPost('/api/update', { id: session.id, password: nw });
+    if (data.success) {
+        showAlert(ok, '✅ Mot de passe changé et sauvegardé !');
+        document.getElementById('pw-old').value = '';
+        document.getElementById('pw-new').value = '';
+        document.getElementById('pw-new2').value = '';
+    } else {
+        showAlert(err, '✗ ' + data.error);
+    }
+}
+
+// ── Admin
+async function loadAdminTab() {
+    const data = await apiGet('/api/comptes');
+    if (!data.success) return;
+    allComptes = data.comptes;
+    renderTable(allComptes);
+}
+
+function renderTable(comptes) {
+    const today = new Date().toLocaleDateString('fr-FR').split('/').reverse().join('/');
+    document.getElementById('stat-total').textContent  = comptes.length;
+    document.getElementById('stat-admins').textContent = comptes.filter(c => c.role === 'admin').length;
+    document.getElementById('stat-users').textContent  = comptes.filter(c => c.role === 'user').length;
+    document.getElementById('stat-today').textContent  = comptes.filter(c => c.date && c.date.startsWith(new Date().toLocaleDateString('fr-FR'))).length;
+
+    document.getElementById('accounts-tbody').innerHTML = comptes.map(c => `
+        <tr>
+            <td class="td-name">${c.name} ${c.id === session.id ? '<span style="font-size:9px;color:var(--muted)">(vous)</span>' : ''}</td>
+            <td>${c.email}</td>
+            <td><span class="td-role ${c.role === 'admin' ? 'role-admin' : 'role-user'}">${c.role === 'admin' ? '👑 Admin' : '🎮 Joueur'}</span></td>
+            <td style="color:var(--muted)">${c.date || '—'}</td>
+            <td>${c.id !== session.id ? `<button class="btn-del" onclick="deleteAccount('${c.id}')">Supprimer</button>` : '—'}</td>
+        </tr>
+    `).join('');
+}
+
+function filterTable(val) {
+    const filtered = allComptes.filter(c =>
+        c.name.toLowerCase().includes(val.toLowerCase()) ||
+        c.email.toLowerCase().includes(val.toLowerCase())
+    );
+    renderTable(filtered);
+}
+
+async function deleteAccount(id) {
+    if (!confirm('Supprimer ce compte définitivement ?')) return;
+    await apiPost('/api/delete-compte', { id });
+    await loadAdminTab();
+}
+
+// ── Utils
+function showAlert(el, msg) {
+    el.textContent = msg; el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
+
+function togglePw(id) {
+    const inp = document.getElementById(id);
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function checkStrength(pw) {
+    const fill = document.getElementById('strength-fill');
+    const label = document.getElementById('strength-label');
+    let score = 0;
+    if (pw.length >= 6) score++;
+    if (pw.length >= 10) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    const levels = [
+        { pct:'0%', color:'transparent', txt:'Entrez un mot de passe' },
+        { pct:'25%', color:'#ff4060', txt:'Très faible' },
+        { pct:'45%', color:'#ff8800', txt:'Faible' },
+        { pct:'65%', color:'#ffaa00', txt:'Moyen' },
+        { pct:'85%', color:'#00aaff', txt:'Fort' },
+        { pct:'100%', color:'#00ffaa', txt:'Très fort' },
+    ];
+    const l = levels[score];
+    fill.style.width = l.pct; fill.style.background = l.color;
+    label.textContent = l.txt; label.style.color = l.color;
+}
+
+// ── Init
+if (session) {
+    loadDashboard(session);
+    showView('view-dashboard');
+}
+</script>
+</body>
+</html>

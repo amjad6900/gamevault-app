@@ -1,0 +1,52 @@
+{
+  "name": "gamevault-desktop",
+  "productName": "GameVault",
+  "version": "4.1.0",
+  "description": "Bibliothèque de jeux locale et synchronisée dans le cloud",
+  "main": "desktop/main.js",
+  "author": "GameVault",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build:server": "powershell -ExecutionPolicy Bypass -File scripts/build-server.ps1",
+    "build:win": "npm run build:server && electron-builder --win nsis portable",
+    "build:nsis": "npm run build:server && electron-builder --win nsis",
+    "build:portable": "npm run build:server && electron-builder --win portable",
+    "build:dir": "npm run build:server && electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.gamevault.desktop",
+    "productName": "GameVault",
+    "asar": true,
+    "compression": "maximum",
+    "files": [
+      "desktop/**/*",
+      "*.html",
+      "serveur_local.py",
+      "cloud_sync.py",
+      "repertoire/**/*",
+      "games/**/*",
+      "README.md"
+    ],
+    "extraResources": [
+      { "from": "resources/server", "to": "server" }
+    ],
+    "directories": { "output": "dist-app", "buildResources": "build" },
+    "win": {
+      "target": ["nsis", "portable"],
+      "artifactName": "GameVault-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GameVault"
+    }
+  }
+}
