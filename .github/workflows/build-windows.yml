@@ -1,0 +1,41 @@
+name: Build GameVault for Windows 11
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install
+      - name: Build installer and portable app
+        run: npm run build:win
+      - name: Publish artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameVault-Windows
+          path: dist-app/*
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $assets = Get-ChildItem -Path dist-app -File | ForEach-Object { $_.FullName }
+          gh release create $env:GITHUB_REF_NAME @assets --repo $env:GITHUB_REPOSITORY --title "GameVault $env:GITHUB_REF_NAME" --generate-notes
