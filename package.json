@@ -35,8 +35,6 @@
       "*.html",
       "serveur_local.py",
       "cloud_sync.py",
-      "repertoire/**/*",
-      "games/**/*",
       "README.md",
       "LICENSE"
     ],

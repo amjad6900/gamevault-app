@@ -13,8 +13,6 @@ pyinstaller --noconfirm --clean --onefile --name GameVaultServer `
   --add-data 'index.html;.' `
   --add-data 'store.html;.' `
   --add-data 'accounts.html;.' `
-  --add-data 'repertoire;repertoire' `
-  --add-data 'games;games' `
   --hidden-import cloud_sync serveur_local.py
 
 New-Item -ItemType Directory -Force -Path 'resources/server' | Out-Null
