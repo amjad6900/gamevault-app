@@ -13,7 +13,13 @@
     "build:win": "npm run build:server && electron-builder --win nsis portable",
     "build:nsis": "npm run build:server && electron-builder --win nsis",
     "build:portable": "npm run build:server && electron-builder --win portable",
-    "build:dir": "npm run build:server && electron-builder --dir"
+    "build:dir": "npm run build:server && electron-builder --dir",
+    "cloudflare:login": "npx wrangler@latest login",
+    "cloudflare:database": "npx wrangler@latest d1 create gamevault-db --binding DATABASE --location weur --update-config",
+    "cloudflare:migrate": "npx wrangler@latest d1 migrations apply gamevault-db --remote",
+    "cloudflare:admin": "node scripts/create-cloudflare-admin.mjs",
+    "cloudflare:assets": "node scripts/build-cloudflare.mjs",
+    "cloudflare:deploy": "npm run cloudflare:assets && npx wrangler@latest deploy"
   },
   "devDependencies": {
     "electron": "^31.7.7",

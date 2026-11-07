@@ -57,21 +57,29 @@ Le dossier [roblox-plugin](roblox-plugin/) contient un plugin Studio avec pannea
 
 Roblox autorise officiellement les plugins Studio à utiliser `HttpService` pour communiquer avec `localhost`/`127.0.0.1`, après accord de permission de l’utilisateur. La publication automatisée d’une place doit rester côté GameVault et utiliser Open Cloud avec une clé limitée à l’univers concerné.
 
-## Site web et publication
+## Site web gratuit
 
-GameVault utilise un serveur Python pour les comptes, la boutique et les téléchargements. GitHub Pages héberge le site statique de présentation et de téléchargement; le Blueprint Render décrit le service web complet et son stockage persistant.
+La vitrine GitHub Pages publie la page de téléchargement. L’application web complète (comptes, boutique, statistiques et jaquettes) utilise Cloudflare Workers et D1; le serveur Python et WebDAV restent dans l’application desktop. Le Worker répond à la demande, sans maintenir un processus Python actif en permanence.
 
-Le workflow `.github/workflows/pages.yml` publie `download.html` sur GitHub Pages à chaque modification. Le workflow `.github/workflows/build-windows.yml` compile les packages NSIS et portable sur Windows à la création d’une release `v*`.
+Le plan gratuit inclut jusqu’à 100 000 requêtes Worker par jour, 5 Go de D1 et des assets statiques d’au plus 25 Mio par fichier (20 000 fichiers par version). Si une limite est atteinte, l’API ou les écritures peuvent être suspendues jusqu’au prochain renouvellement de quota. Consultez les [limites Workers](https://developers.cloudflare.com/workers/platform/limits/) et [tarifs D1](https://developers.cloudflare.com/d1/platform/pricing/).
 
-## Serveur public 24 h/24
+Depuis la racine du projet, configurez le service gratuit :
 
-Le service public est préparé pour Render avec `render.yaml` et `Dockerfile`. Il héberge la boutique web et son API Python sur une instance payante qui ne s’endort pas, avec un disque persistant de 10 Go monté sur `/var/data`. Les comptes, jaquettes, jeux et statistiques restent sur ce disque après un redémarrage ou un nouveau déploiement.
+```powershell
+npm run cloudflare:login
+npm run cloudflare:database
+npm run cloudflare:migrate
+npm run cloudflare:admin
+npm run cloudflare:deploy
+```
 
-Pour le créer, connectez le dépôt `amjad6900/gamevault-app` à Render comme **Blueprint**. Render demandera `GAMEVAULT_ADMIN_EMAIL` et `GAMEVAULT_ADMIN_PASSWORD` : choisissez l’adresse propriétaire et un mot de passe unique d’au moins 16 caractères directement dans Render. Ne mettez jamais ces secrets dans GitHub. L’administrateur est créé ou renforcé au premier démarrage. Les jeux se téléchargent depuis le site; l’installation, le lancement local et WebDAV restent dans l’application desktop.
+Choisissez le plan **Workers Free** dans Cloudflare. La commande administrateur demande une adresse et un mot de passe unique de 16 caractères minimum dans le terminal; le mot de passe brut n’est pas transmis au Worker ni ajouté au dépôt. La dernière commande affiche l’adresse publique `workers.dev`.
 
-L’instance configurée est le plan Render `starter` (7 $ US/mois) et son disque de 10 Go (2,50 $ US/mois), soit environ 9,50 $ US/mois avant les dépassements de bande passante et de stockage. Le service payant reste actif en continu, mais une maintenance du fournisseur peut occasionner une courte interruption. Le disque peut être agrandi après sa création; Render ne permet pas de le réduire.
+Les jaquettes sont stockées dans D1 et limitées à 512 Ko chacune, dans la limite globale gratuite de la base. Pour ajouter un jeu, l’administrateur peut donner un lien HTTPS direct ou placer un fichier redistribuable de 25 Mio maximum dans `cloudflare/public-games`, puis saisir `/games/nom-du-fichier.zip`. Les jeux et comptes présents dans les dossiers locaux `games/` et `repertoire/` ne sont jamais copiés automatiquement dans le site public. Au premier déploiement, ajoutez les jeux voulus depuis le compte propriétaire.
 
-Le profil hébergé bind le serveur sur l’interface publique derrière HTTPS Render, utilise un compte propriétaire configuré par secrets et n’expose pas l’exécution de jeux ni les paramètres WebDAV partagés. Le mode desktop reste lié à `127.0.0.1`.
+Les fichiers ajoutés à `cloudflare/public-games` sont publiés dans un dépôt public. N’y placez que des contenus que vous pouvez distribuer. Pour les archives supérieures à 25 Mio, utilisez un hébergeur HTTPS externe; aucun stockage R2 payant n’est configuré.
+
+Le workflow `.github/workflows/pages.yml` publie `download.html` sur GitHub Pages. Le workflow `.github/workflows/build-windows.yml` compile les packages NSIS et portable sur Windows à la création d’une release `v*`.
 
 ## Licence
 

@@ -901,20 +901,32 @@ function renderAdmin() {
             <div class="field-group" style="margin-bottom:14px"><div class="field-label">Description</div><textarea class="field-input" id="up-desc" placeholder="Décrivez votre jeu..."></textarea></div>
             <div class="field-group" style="margin-bottom:14px"><div class="field-label">Icône</div><div class="emoji-row">${emojis.map(e => `<button class="emoji-btn ${e===selectedEmoji?'selected':''}" onclick="selectEmoji('${e}',this)">${e}</button>`).join('')}</div></div>
             <div class="field-group" style="margin-bottom:14px">
-                <div class="field-label">Jaquette du jeu (facultatif · PNG, JPG, WEBP, GIF · 15 Mo max)</div>
+                <div class="field-label">Jaquette du jeu (facultatif · PNG, JPG, WEBP, GIF · ${hostedMode ? '512 Ko max' : '15 Mo max'})</div>
                 <input class="field-input" type="file" id="up-cover" accept="image/png,image/jpeg,image/webp,image/gif" onchange="onCoverSelect(this)" style="padding:8px">
                 <img class="cover-preview" id="cover-preview" alt="Aperçu de la jaquette">
-                <div class="admin-upload-hint">Pas de limite de taille imposée aux fichiers de jeu par GameVault : la capacité disponible dépend de ton disque.</div>
+                <div class="admin-upload-hint">${hostedMode ? 'Jaquettes stockées dans la base Cloudflare gratuite. Espace total partagé avec les comptes : 5 Go.' : 'Pas de limite de taille imposée aux fichiers de jeu par GameVault : la capacité disponible dépend de ton disque.'}</div>
             </div>
-            <div class="field-group" style="margin-bottom:16px">
-                <div class="field-label">Fichier du jeu * (ZIP, EXE, etc.)</div>
-                <div class="dropzone" id="dropzone">
-                    <input type="file" id="up-file" onchange="onFileSelect(this)">
-                    <div class="dropzone-icon">📂</div>
-                    <div class="dropzone-text">Glissez votre fichier ou <strong>cliquez pour parcourir</strong></div>
-                    <div class="dropzone-file" id="dropzone-fname"></div>
+            ${hostedMode ? `
+                <div class="field-group" style="margin-bottom:16px">
+                    <div class="field-label">Fichier ou lien du jeu *</div>
+                    <input class="field-input" id="up-url" placeholder="/games/mon-jeu.zip ou https://exemple.com/mon-jeu.zip" required>
+                    <div class="admin-upload-hint">Pour publier gratuitement un fichier, place-le dans <code>cloudflare/public-games</code> (25 Mio maximum), puis indique son chemin. Tu peux aussi saisir un lien HTTPS direct.</div>
                 </div>
-            </div>
+                <div class="field-group" style="margin-bottom:16px">
+                    <div class="field-label">Taille affichée (facultatif)</div>
+                    <input class="field-input" id="up-size" placeholder="Ex. 120 Mo">
+                </div>
+            ` : `
+                <div class="field-group" style="margin-bottom:16px">
+                    <div class="field-label">Fichier du jeu * (ZIP, EXE, etc.)</div>
+                    <div class="dropzone" id="dropzone">
+                        <input type="file" id="up-file" onchange="onFileSelect(this)">
+                        <div class="dropzone-icon">📂</div>
+                        <div class="dropzone-text">Glissez votre fichier ou <strong>cliquez pour parcourir</strong></div>
+                        <div class="dropzone-file" id="dropzone-fname"></div>
+                    </div>
+                </div>
+            `}
             <div class="up-progress" id="up-progress"><div class="up-bar"><div class="up-fill" id="up-fill"></div></div><div class="up-label" id="up-label">Upload...</div></div>
             <button class="btn-upload" id="btn-upload" onclick="uploadJeu()">⬆ Publier le jeu</button>
         </div>
@@ -937,15 +949,17 @@ function renderAdmin() {
     `;
 
     const dz = document.getElementById('dropzone');
-    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
-    dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
-    dz.addEventListener('drop', e => {
-        e.preventDefault(); dz.classList.remove('drag');
-        if (e.dataTransfer.files.length) {
-            selectedFile = e.dataTransfer.files[0];
-            document.getElementById('dropzone-fname').textContent = '✅ ' + selectedFile.name;
-        }
-    });
+    if (dz) {
+        dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+        dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+        dz.addEventListener('drop', e => {
+            e.preventDefault(); dz.classList.remove('drag');
+            if (e.dataTransfer.files.length) {
+                selectedFile = e.dataTransfer.files[0];
+                document.getElementById('dropzone-fname').textContent = '✅ ' + selectedFile.name;
+            }
+        });
+    }
 }
 
 function selectEmoji(e, btn) {
@@ -961,8 +975,22 @@ function onCoverSelect(input) {
     selectedCover = input.files?.[0] || null;
     const preview = document.getElementById('cover-preview');
     if (!selectedCover) { preview.style.display = 'none'; return; }
+    if (hostedMode && selectedCover.size > 512 * 1024) {
+        input.value = ''; selectedCover = null; preview.style.display = 'none';
+        showAlert(document.getElementById('up-err'), '✗ En hébergement gratuit, une jaquette ne peut pas dépasser 512 Ko.');
+        return;
+    }
     coverPreviewUrl = URL.createObjectURL(selectedCover);
     preview.src = coverPreviewUrl; preview.style.display = 'block';
+}
+
+async function fileToBase64(file) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = '';
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + 0x8000, bytes.length)));
+    }
+    return btoa(binary);
 }
 
 async function uploadJeu() {
@@ -975,7 +1003,8 @@ async function uploadJeu() {
     err.style.display = 'none'; ok.style.display = 'none';
     if (!titre) { showAlert(err,'⚠ Titre requis.'); return; }
     if (!genre) { showAlert(err,'⚠ Genre requis.'); return; }
-    if (!selectedFile) { showAlert(err,'⚠ Sélectionnez un fichier.'); return; }
+    if (hostedMode && !document.getElementById('up-url')?.value.trim()) { showAlert(err,'⚠ Ajoute un lien HTTPS vers le fichier du jeu.'); return; }
+    if (!hostedMode && !selectedFile) { showAlert(err,'⚠ Sélectionnez un fichier.'); return; }
 
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Upload...';
     const progress = document.getElementById('up-progress');
@@ -987,15 +1016,25 @@ async function uploadJeu() {
     const iv = setInterval(() => { p = Math.min(p + Math.random()*12 + 3, 90); fill.style.width = p+'%'; label.textContent = `Upload... ${Math.round(p)}%`; }, 150);
 
     try {
-        const fd = new FormData();
-        fd.append('fichier', selectedFile);
-        fd.append('titre', titre); fd.append('genre', genre);
-        fd.append('description', desc || 'Pas de description.');
-        fd.append('emoji', selectedEmoji);
-        if (selectedCover) fd.append('image', selectedCover);
-
-        const res  = await fetch('/api/upload-jeu', { method:'POST', body:fd });
-        const data = await res.json();
+        let data;
+        if (hostedMode) {
+            data = await apiPost('/api/upload-jeu', {
+                titre, genre, description: desc || 'Pas de description.', emoji: selectedEmoji,
+                file_url: document.getElementById('up-url').value.trim(),
+                taille: document.getElementById('up-size').value.trim() || 'Lien externe',
+                image_type: selectedCover?.type || '',
+                image_base64: selectedCover ? await fileToBase64(selectedCover) : ''
+            });
+        } else {
+            const fd = new FormData();
+            fd.append('fichier', selectedFile);
+            fd.append('titre', titre); fd.append('genre', genre);
+            fd.append('description', desc || 'Pas de description.');
+            fd.append('emoji', selectedEmoji);
+            if (selectedCover) fd.append('image', selectedCover);
+            const res = await fetch('/api/upload-jeu', { method:'POST', body:fd });
+            data = await res.json();
+        }
         clearInterval(iv); fill.style.width = '100%'; label.textContent = 'Upload terminé !';
 
         if (data.success) {

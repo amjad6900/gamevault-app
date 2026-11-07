@@ -7,6 +7,8 @@ resources/server/*.exe
 __pycache__/
 *.pyc
 .DS_Store
+.cloudflare-public/
+.tmp/
 # Local GameVault data may contain plaintext legacy account passwords,
 # uploaded games, covers, usage statistics, and WebDAV credentials.
 repertoire/

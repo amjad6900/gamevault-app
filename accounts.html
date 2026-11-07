@@ -332,7 +332,32 @@
 const API = '';  // même serveur
 let session = JSON.parse(sessionStorage.getItem('gv_session') || 'null');
 let allComptes = [];
+let hostedMode = false;
+let runtimePromise = null;
 if (session && !session.token) { session = null; sessionStorage.removeItem('gv_session'); }
+
+async function ensureRuntime() {
+    if (!runtimePromise) runtimePromise = fetch('/api/health', { cache: 'no-store' })
+        .then(res => res.json()).then(health => { hostedMode = health.hosted === true; return health; })
+        .catch(() => ({ hosted: false }));
+    return runtimePromise;
+}
+
+function toHex(bytes) { return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join(''); }
+function fromHex(hex) { return Uint8Array.from((hex.match(/.{2}/g) || []).map(value => parseInt(value, 16))); }
+function randomHex(length = 16) { const bytes = crypto.getRandomValues(new Uint8Array(length)); return toHex(bytes); }
+
+async function deriveHostedVerifier(password, saltHex) {
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: fromHex(saltHex), iterations: 210000 }, key, 256);
+    return toHex(new Uint8Array(bits));
+}
+
+async function hostedProof(verifierHex, nonceHex) {
+    const key = await crypto.subtle.importKey('raw', fromHex(verifierHex), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const signature = await crypto.subtle.sign('HMAC', key, fromHex(nonceHex));
+    return toHex(new Uint8Array(signature));
+}
 
 // ── Vues
 function showView(id) {
@@ -350,6 +375,25 @@ function switchTab(tabId, btn) {
 
 // ── API calls
 async function apiPost(route, body) {
+    await ensureRuntime();
+    let payload = body;
+    if (hostedMode && route === '/api/login') {
+        const challenge = await sendApiPost('/api/auth/challenge', { email: body.email });
+        if (!challenge.success) return challenge;
+        const verifier = await deriveHostedVerifier(body.password, challenge.salt);
+        payload = { email: body.email, challenge_id: challenge.challenge_id, proof: await hostedProof(verifier, challenge.nonce) };
+    } else if (hostedMode && route === '/api/register') {
+        const salt = randomHex(16);
+        payload = { name: body.name, email: body.email, salt, verifier: await deriveHostedVerifier(body.password, salt) };
+    } else if (hostedMode && route === '/api/update' && body.password) {
+        const salt = randomHex(16);
+        const verifier = await deriveHostedVerifier(body.password, salt);
+        payload = { ...body, password: undefined, password_salt: salt, password_verifier: verifier };
+    }
+    return sendApiPost(route, payload);
+}
+
+async function sendApiPost(route, body) {
     const token = session?.token;
     const res = await fetch(API + route, {
         method: 'POST',
@@ -360,6 +404,7 @@ async function apiPost(route, body) {
 }
 
 async function apiGet(route) {
+    await ensureRuntime();
     const token = session?.token;
     const res = await fetch(API + route, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     return res.json();
