@@ -37,10 +37,14 @@ from datetime import datetime
 from cloud_sync import CloudSyncError, WebDAVSync
 
 SITE_FOLDER    = os.path.dirname(os.path.abspath(__file__))
-PORT           = int(os.environ.get("GAMEVAULT_PORT", "8080"))
-# The HTTP API includes local account and administration actions. Keep it
-# loopback-only even if a parent process or shell exports another bind host.
-HOST           = "127.0.0.1"
+HOSTED_MODE    = os.environ.get("GAMEVAULT_HOSTED", "0") == "1"
+PUBLIC_BIND    = os.environ.get("GAMEVAULT_PUBLIC_HOST", "0") == "1"
+PORT           = int(os.environ.get("PORT", "10000")) if HOSTED_MODE else int(os.environ.get("GAMEVAULT_PORT", "8080"))
+# Desktop development stays on loopback. A public bind is possible only in
+# the explicit hosted deployment profile (Render supplies PORT at runtime).
+if PUBLIC_BIND and not HOSTED_MODE:
+    raise RuntimeError("GAMEVAULT_PUBLIC_HOST=1 exige aussi GAMEVAULT_HOSTED=1")
+HOST           = "0.0.0.0" if HOSTED_MODE and PUBLIC_BIND else "127.0.0.1"
 _default_data  = os.path.join(os.environ.get("APPDATA", SITE_FOLDER), "GameVault", "data") if os.name == "nt" else SITE_FOLDER
 DATA_FOLDER    = os.path.abspath(os.environ.get("GAMEVAULT_DATA_DIR", _default_data))
 COMPTES_FILE   = os.path.join(DATA_FOLDER, "repertoire", "comptes.txt")
@@ -227,6 +231,27 @@ def log(msg, level="INFO"):
 download_stats = {}  # jeu_id -> nombre de téléchargements
 active_sessions = {}
 SESSION_TTL = 24 * 60 * 60
+AUTH_RATE_LIMITS = {"/api/login": (10, 900), "/api/register": (5, 900)}
+AUTH_RATE_WINDOW = {}
+AUTH_RATE_LOCK = threading.Lock()
+
+
+def auth_rate_limited(path, client_ip):
+    limit, window_seconds = AUTH_RATE_LIMITS[path]
+    now = time.time()
+    key = (path, client_ip)
+    with AUTH_RATE_LOCK:
+        attempts = [stamp for stamp in AUTH_RATE_WINDOW.get(key, []) if now - stamp < window_seconds]
+        if len(attempts) >= limit:
+            AUTH_RATE_WINDOW[key] = attempts
+            return max(1, int(window_seconds - (now - attempts[0])))
+        attempts.append(now)
+        AUTH_RATE_WINDOW[key] = attempts
+        if len(AUTH_RATE_WINDOW) > 5000:
+            for old_key, stamps in list(AUTH_RATE_WINDOW.items()):
+                if not stamps or now - stamps[-1] >= window_seconds:
+                    AUTH_RATE_WINDOW.pop(old_key, None)
+    return 0
 
 
 def hash_password(password):
@@ -329,10 +354,49 @@ def init_dossiers():
                     if os.path.isfile(src) and not os.path.exists(dst):
                         shutil.copy2(src, dst)
     if not os.path.exists(COMPTES_FILE):
+        admin_email = os.environ.get("GAMEVAULT_ADMIN_EMAIL", "").strip().lower()
+        admin_password = os.environ.get("GAMEVAULT_ADMIN_PASSWORD", "")
+        if HOSTED_MODE and ("@" not in admin_email or len(admin_password) < 16):
+            raise RuntimeError(
+                "Déploiement hébergé : renseignez GAMEVAULT_ADMIN_EMAIL et "
+                "GAMEVAULT_ADMIN_PASSWORD (16 caractères minimum) avant le démarrage."
+            )
         with open(COMPTES_FILE, "w", encoding="utf-8") as f:
             f.write("# GAMEVAULT - COMPTES\n# ID | NOM | EMAIL | MOT_DE_PASSE | ROLE | DATE\n\n")
-            f.write(f"admin | Admin | admin@gamevault.com | {hash_password('admin123')} | admin | {datetime.now().strftime('%d/%m/%Y %H:%M')}\n")
-        log("Compte admin créé", "OK")
+            if HOSTED_MODE:
+                f.write(f"admin | Propriétaire | {flat_text(admin_email, 240)} | {hash_password(admin_password)} | admin | {datetime.now().strftime('%d/%m/%Y %H:%M')}\n")
+            else:
+                f.write(f"admin | Admin | admin@gamevault.com | {hash_password('admin123')} | admin | {datetime.now().strftime('%d/%m/%Y %H:%M')}\n")
+        log("Compte propriétaire initial créé" if HOSTED_MODE else "Compte admin local créé", "OK")
+    elif HOSTED_MODE:
+        admin_email = os.environ.get("GAMEVAULT_ADMIN_EMAIL", "").strip().lower()
+        admin_password = os.environ.get("GAMEVAULT_ADMIN_PASSWORD", "")
+        if "@" not in admin_email or len(admin_password) < 16:
+            raise RuntimeError("Déploiement hébergé : les secrets GAMEVAULT_ADMIN_EMAIL et GAMEVAULT_ADMIN_PASSWORD (16 caractères minimum) sont requis.")
+        comptes = lire_comptes()
+        owner = next((c for c in comptes if c["email"].lower() == admin_email), None)
+        if owner:
+            changed = owner["role"] != "admin"
+            owner["role"] = "admin"
+            # Replace the known local demo credential if its data directory
+            # was copied into a hosted deployment.
+            if verify_password("admin123", owner["password"]):
+                owner["name"] = "Propriétaire"
+                owner["password"] = hash_password(admin_password)
+                changed = True
+                log("Mot de passe administrateur de démonstration remplacé", "WARN")
+            if changed:
+                ecrire_comptes(comptes)
+        else:
+            legacy = next((c for c in comptes if c["email"].lower() == "admin@gamevault.com" and verify_password("admin123", c["password"])), None)
+            if legacy:
+                legacy.update({"name": "Propriétaire", "email": admin_email, "password": hash_password(admin_password), "role": "admin"})
+                ecrire_comptes(comptes)
+                log("Compte administrateur de démonstration remplacé par le propriétaire", "WARN")
+            else:
+                comptes.append({"id": "admin-owner", "name": "Propriétaire", "email": admin_email, "password": hash_password(admin_password), "role": "admin", "date": datetime.now().strftime("%d/%m/%Y %H:%M")})
+                ecrire_comptes(comptes)
+                log("Compte propriétaire ajouté au registre existant", "OK")
     if not os.path.exists(CATALOGUE_FILE):
         with open(CATALOGUE_FILE, "w", encoding="utf-8") as f:
             f.write("# GAMEVAULT - CATALOGUE\n# ID | TITRE | GENRE | DESCRIPTION | FICHIER | TAILLE | EMOJI | DATE\n\n")
@@ -637,6 +701,14 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
             return None
         return session
 
+    def check_auth_rate_limit(self, path):
+        client_ip = self.headers.get("CF-Connecting-IP") or str(self.client_address[0])
+        wait_seconds = auth_rate_limited(path, client_ip.strip())
+        if not wait_seconds:
+            return False
+        self.send_json({"success": False, "error": "Trop de tentatives. Réessaie plus tard."}, 429)
+        return True
+
     def do_OPTIONS(self):
         self.send_response(200)
         origin = self.headers.get("Origin", "")
@@ -652,7 +724,7 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
 
         if path == "/api/health":
-            self.send_json({"success": True, "app": "GameVault", "version": "4.1.0", "ready": True})
+            self.send_json({"success": True, "app": "GameVault", "version": "4.1.0", "ready": True, "hosted": HOSTED_MODE})
 
         elif path.startswith("/media/covers/"):
             image_name = os.path.basename(unquote(path[len("/media/covers/"):]))
@@ -684,9 +756,17 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json({"success": True, "games": roblox_games})
 
         elif path == "/api/system":
-            self.send_json({"success": True, "system": system_snapshot()})
+            if HOSTED_MODE:
+                snapshot = system_snapshot()
+                snapshot = {key: snapshot[key] for key in ("files", "data_size", "threads")}
+                snapshot["platform"] = "serveur hébergé"
+                self.send_json({"success": True, "system": snapshot})
+            else:
+                self.send_json({"success": True, "system": system_snapshot()})
 
         elif path == "/api/cloud/status":
+            if HOSTED_MODE:
+                self.send_json({"success": False, "error": "La synchronisation WebDAV est réservée à l’application desktop."}, 404); return
             if not self.require_auth(): return
             try:
                 self.send_json({"success": True, "cloud": cloud_sync.public_config(), "manifest": len(cloud_sync.manifest())})
@@ -709,6 +789,8 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json({"success": True, "jeux": lire_catalogue()})
 
         elif path == "/api/library":
+            if HOSTED_MODE:
+                self.send_json({"success": False, "error": "La bibliothèque locale est disponible dans l’application desktop."}, 404); return
             if not self.require_auth(): return
             self.send_json({"success": True, "games": list_installed_games()})
 
@@ -811,6 +893,7 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
 
         if path == "/api/login":
+            if self.check_auth_rate_limit(path): return
             data = self.read_body()
             compte, err = connexion(data.get("email","").strip(), data.get("password","").strip())
             if err:
@@ -826,12 +909,13 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json({"success": True})
 
         elif path == "/api/register":
+            if self.check_auth_rate_limit(path): return
             data = self.read_body()
             name, email, pw = data.get("name","").strip(), data.get("email","").strip(), data.get("password","").strip()
             if not name or not email or not pw:
                 self.send_json({"success": False, "error": "Champs manquants"}, 400); return
-            if len(pw) < 6:
-                self.send_json({"success": False, "error": "Mot de passe trop court"}, 400); return
+            if len(pw) < 12:
+                self.send_json({"success": False, "error": "Mot de passe trop court (12 caractères minimum)"}, 400); return
             compte, err = ajouter_compte(name, email, pw)
             if err:
                 self.send_json({"success": False, "error": err}, 409)
@@ -843,6 +927,8 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
             data = self.read_body()
             session = self.require_auth()
             if not session: return
+            if data.get("password") and len(str(data["password"])) < 12:
+                self.send_json({"success": False, "error": "Mot de passe trop court (12 caractères minimum)"}, 400); return
             if str(data.get("id", "")) != str(session.get("id")) and session.get("role") != "admin":
                 self.send_json({"success": False, "error": "Action non autorisée"}, 403); return
             compte, err = modifier_compte(data.get("id"), name=data.get("name"),
@@ -866,6 +952,8 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json({"success": ok}, 200 if ok else 404)
 
         elif path == "/api/library/install":
+            if HOSTED_MODE:
+                self.send_json({"success": False, "error": "Utilisez Télécharger depuis la boutique web."}, 404); return
             if not self.require_auth(): return
             data = self.read_body()
             game_id = str(data.get("id", ""))
@@ -897,6 +985,8 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json({"success": True, "already_installed": False, "game": game})
 
         elif path == "/api/library/launch":
+            if HOSTED_MODE:
+                self.send_json({"success": False, "error": "Le lancement des jeux est réservé à l’application desktop."}, 404); return
             if not self.require_auth(): return
             data = self.read_body()
             game_id = str(data.get("id", ""))
@@ -918,6 +1008,8 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_json({"success": False, "error": f"Lancement impossible : {exc}"}, 400)
 
         elif path == "/api/cloud/configure":
+            if HOSTED_MODE:
+                self.send_json({"success": False, "error": "La synchronisation WebDAV est réservée à l’application desktop."}, 404); return
             data = self.read_body()
             if not self.require_auth(): return
             try:
@@ -939,6 +1031,8 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_json({"success": False, "error": str(exc)}, 400)
 
         elif path == "/api/cloud/sync":
+            if HOSTED_MODE:
+                self.send_json({"success": False, "error": "La synchronisation WebDAV est réservée à l’application desktop."}, 404); return
             data = self.read_body()
             if not self.require_auth(): return
             try:
@@ -948,6 +1042,8 @@ class GameVaultHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_json({"success": False, "error": str(exc)}, 502)
 
         elif path == "/api/optimization":
+            if HOSTED_MODE:
+                self.send_json({"success": False, "error": "La maintenance de l’hôte n’est pas exposée sur le service public."}, 404); return
             if not self.require_auth(): return
             self.send_json(run_optimization())
 
@@ -1050,6 +1146,8 @@ def main():
     os.chdir(SITE_FOLDER)
     log(f"Dossier  : {SITE_FOLDER}", "OK")
     log(f"Adresse  : {HOST}:{PORT}", "OK")
+    if HOSTED_MODE:
+        log("Mode hébergé actif ; données persistantes séparées du code", "OK")
 
     print(f"""
 {C.CYAN}  Pages :

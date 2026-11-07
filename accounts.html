@@ -206,7 +206,7 @@
                     <label>Mot de passe</label>
                     <div class="input-wrap">
                         <span class="input-icon">🔒</span>
-                        <input type="password" id="reg-pw" placeholder="Minimum 6 caractères" oninput="checkStrength(this.value)">
+                        <input type="password" id="reg-pw" placeholder="Minimum 12 caractères" oninput="checkStrength(this.value)">
                         <button class="toggle-pw" onclick="togglePw('reg-pw')">👁</button>
                     </div>
                     <div class="strength-wrap">
@@ -405,7 +405,7 @@ async function doRegister() {
 
     if (!name || !email || !pw || !pw2) { showAlert(err, '⚠ Remplissez tous les champs.'); return; }
     if (pw !== pw2) { showAlert(err, '✗ Les mots de passe ne correspondent pas.'); return; }
-    if (pw.length < 6) { showAlert(err, '⚠ Mot de passe trop court (6 min).'); return; }
+    if (pw.length < 12) { showAlert(err, '⚠ Mot de passe trop court (12 caractères minimum).'); return; }
 
     btn.disabled = true; btn.textContent = 'Création...';
     try {
@@ -481,7 +481,7 @@ async function changePassword() {
     const ok   = document.getElementById('pw-ok');
 
     if (nw !== nw2) { showAlert(err, '✗ Les mots de passe ne correspondent pas.'); return; }
-    if (nw.length < 6) { showAlert(err, '⚠ Mot de passe trop court.'); return; }
+    if (nw.length < 12) { showAlert(err, '⚠ Mot de passe trop court (12 caractères minimum).'); return; }
 
     // Vérifie l'ancien mot de passe via login
     const check = await apiPost('/api/login', { email: session.email, password: old });

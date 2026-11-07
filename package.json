@@ -4,8 +4,8 @@
   "version": "4.1.0",
   "description": "Bibliothèque de jeux locale et synchronisée dans le cloud",
   "main": "desktop/main.js",
-  "author": "GameVault",
-  "license": "MIT",
+  "author": "Amjad6900",
+  "license": "UNLICENSED",
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
@@ -31,7 +31,8 @@
       "cloud_sync.py",
       "repertoire/**/*",
       "games/**/*",
-      "README.md"
+      "README.md",
+      "LICENSE"
     ],
     "extraResources": [
       { "from": "resources/server", "to": "server" }

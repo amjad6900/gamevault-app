@@ -323,7 +323,7 @@
             <div class="nav-item" id="nav-cloud" onclick="setTab('cloud',this)">
                 <span class="nav-icon">☁️</span> Cloud & optimisation
             </div>
-            <div class="nav-item" onclick="setTab('library',this)">
+            <div class="nav-item" id="nav-library" onclick="setTab('library',this)">
                 <span class="nav-icon">🗂️</span> Ma bibliothèque
                 <span class="nav-count" id="cnt-library">0</span>
             </div>
@@ -409,6 +409,8 @@ const API = '';
 let session = JSON.parse(sessionStorage.getItem('gv_session') || 'null');
 let allJeux = [], currentGenre = '', currentSearch = '', currentTab = 'home', currentSort = 'popular';
 let installedGames = new Set();
+let hostedMode = false;
+const desktopBridge = window.gameVaultDesktop || null;
 let selectedEmoji = '🎮', selectedFile = null, selectedCover = null, coverPreviewUrl = '';
 let activeDownloads = {};
 const browserScope = encodeURIComponent(String(session?.id || session?.email || 'default'));
@@ -454,6 +456,7 @@ async function loadCatalogue() {
 }
 
 async function refreshInstalledGames() {
+    if (hostedMode) { installedGames = new Set(); return; }
     if (!session) { installedGames = new Set(); return; }
     try {
         const data = await apiGet('/api/library');
@@ -530,13 +533,14 @@ function gameCardMarkup(j, i = 0, badge = '') {
     const cardId = `${id}-${String(badge||'catalogue').replace(/[^a-zA-Z0-9_-]/g,'')}-${i}`;
     const colors = ['#102747,#0a1422','#17243a,#131a2c','#12313a,#101b27','#28203a,#131725'];
     const cover = j.image ? `/media/covers/${encodeURIComponent(j.image)}` : '';
-    const installed = installedGames.has(String(j.id));
+    const installed = !hostedMode && installedGames.has(String(j.id));
+    const actionLabel = hostedMode ? '⬇ Télécharger' : installed ? '▶ Jouer' : '⬇ Installer';
     return `<article class="game-card" style="animation-delay:${Math.min(i,8)*.045}s" onclick="openModal('${id}')">
         <div class="game-thumb ${cover?'has-cover':''}" style="background:linear-gradient(140deg,${colors[i%colors.length]})">${cover?`<img class="game-cover" src="${cover}" alt="Jaquette de ${escapeHtml(j.titre)}" loading="lazy">`:''}<span class="game-thumb-emoji">${escapeHtml(j.emoji||'🎮')}</span></div>
         <div class="game-info"><div class="game-card-topline"><span class="game-badge">${escapeHtml(badge||j.genre||'Jeu')}</span>${wishlistButtonMarkup(id)}</div>
             <div class="game-title">${escapeHtml(j.titre)}</div><div class="game-genre">${escapeHtml(j.genre||'Jeu')}</div>
             <div class="game-meta"><span class="game-size">📦 ${escapeHtml(j.taille||'—')}</span><span class="game-dl-count">⬇ ${Number(j.telechargements||0)}</span></div>
-            <div class="dl-wrap"><button class="${installed?'btn-play':'btn-dl'}" onclick="event.stopPropagation();${installed?`launchGame('${id}')`:`startDownload('${id}',this)`}">${installed?'▶ Jouer':'⬇ Installer'}</button>
+            <div class="dl-wrap"><button class="${installed?'btn-play':'btn-dl'}" onclick="event.stopPropagation();${installed?`launchGame('${id}')`:`startDownload('${id}',this)`}">${actionLabel}</button>
                 <div class="dl-progress" id="prog-${cardId}"><div class="dl-bar"><div class="dl-fill" id="fill-${cardId}"></div></div><div class="dl-info"><span id="pct-${cardId}">0%</span><span class="dl-speed" id="spd-${cardId}">— Ko/s</span></div></div>
             </div>
         </div>
@@ -650,7 +654,37 @@ async function launchGame(id) {
     } catch (error) { alert(error.message || 'Lancement impossible.'); }
 }
 
-async function startDownload(id, btn) { return installGame(id, btn); }
+async function startDownload(id, btn) {
+    const game = allJeux.find(item => String(item.id) === String(id));
+    if (hostedMode) {
+        const link = document.createElement('a');
+        link.href = `/api/download/${encodeURIComponent(String(id))}`;
+        link.download = game?.fichier || '';
+        document.body.appendChild(link); link.click(); link.remove();
+        if (btn) btn.textContent = '⬇ Téléchargement lancé';
+        return true;
+    }
+    if (desktopBridge?.isDesktop && game) {
+        if (!session) { alert('Connecte-toi pour télécharger un jeu.'); return false; }
+        if (btn) { btn.disabled = true; btn.textContent = 'Préparation…'; }
+        const stopListening = desktopBridge.onDownloadProgress(progress => {
+            if (String(progress.id) !== String(id) || !btn) return;
+            const percent = progress.total ? Math.floor(progress.received / progress.total * 100) : 0;
+            btn.textContent = `⬇ ${percent}%`;
+        });
+        try {
+            await desktopBridge.downloadGame(id, game.fichier);
+            installedGames.add(String(id)); updateSidebar();
+            if (btn) { btn.disabled = false; btn.className = 'btn-play'; btn.textContent = '▶ Jouer'; btn.onclick = event => { event.stopPropagation(); launchGame(id); }; }
+            return true;
+        } catch (error) {
+            if (btn) { btn.disabled = false; btn.textContent = '↻ Réessayer'; }
+            alert(error.message || 'Téléchargement impossible.');
+            return false;
+        } finally { stopListening(); }
+    }
+    return installGame(id, btn);
+}
 
 // ── MODAL avec progression
 function openModal(id) {
@@ -677,7 +711,7 @@ function openModal(id) {
 
     const dlBtn = document.getElementById('m-dl-btn');
     dlBtn.disabled = false;
-    dlBtn.innerHTML = installedGames.has(String(id)) ? '▶ Jouer' : '⬇ Installer';
+    dlBtn.innerHTML = hostedMode ? '⬇ Télécharger' : installedGames.has(String(id)) ? '▶ Jouer' : '⬇ Installer';
     dlBtn.onclick = () => installedGames.has(String(id)) ? launchGame(id) : startModalDownload(id, j);
     const wishButton = document.getElementById('m-wish-btn');
     wishButton.dataset.gameId = String(j.id);
@@ -690,6 +724,7 @@ function openModal(id) {
 
 async function startModalDownload(id, jeu) {
     const button = document.getElementById('m-dl-btn');
+    if (hostedMode) { await startDownload(id, button); return; }
     if (installedGames.has(String(id))) { await launchGame(id); return; }
     const installed = await installGame(id, button);
     if (installed) {
@@ -742,6 +777,10 @@ async function renderStats() {
 
 async function renderLibrary() {
     const content = document.getElementById('content');
+    if (hostedMode) {
+        content.innerHTML = `<div class="empty-state"><div class="empty-icon">💻</div><div class="empty-title">BIBLIOTHÈQUE DESKTOP</div><div class="empty-sub">Télécharge GameVault pour installer et lancer les jeux sur ton ordinateur.</div><a class="btn-primary" href="/download.html" style="display:inline-block;margin-top:18px;text-decoration:none">Télécharger GameVault</a></div>`;
+        return;
+    }
     if (!session) {
         content.innerHTML = `<div class="empty-state"><div class="empty-icon">🔐</div><div class="empty-title">CONNECTE-TOI POUR JOUER</div><div class="empty-sub">La bibliothèque locale permet d’installer et de lancer des jeux sur cet ordinateur.</div><a class="btn-primary" href="accounts.html" style="display:inline-block;margin-top:18px;text-decoration:none">Se connecter</a></div>`;
         return;
@@ -979,7 +1018,20 @@ async function supprimerJeu(id) {
 
 function showAlert(el, msg) { el.textContent = msg; el.style.display = 'block'; setTimeout(() => el.style.display='none', 4000); }
 
-loadCatalogue();
+async function initializeStore() {
+    try {
+        const response = await fetch('/api/health', {cache:'no-store'});
+        const health = await response.json();
+        hostedMode = health.hosted === true;
+    } catch (_) {}
+    if (hostedMode) {
+        document.getElementById('nav-cloud').style.display = 'none';
+        document.getElementById('nav-library').style.display = 'none';
+    }
+    await loadCatalogue();
+}
+
+initializeStore();
 </script>
 </body>
 </html>
