@@ -9,5 +9,12 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*", "/media/covers/*"]
   },
-  "d1_databases": []
+  "d1_databases": [
+    {
+      "binding": "DATABASE",
+      "database_name": "gamevault-db",
+      "database_id": "85fe5135-f568-474f-ba1c-700b6a84c2d1",
+      "migrations_dir": "migrations"
+    }
+  ]
 }
